@@ -34,7 +34,7 @@ const U = SW.util = {
 };
 
 const D = SW.data = {};
-D.VERSION = '0.88.0';
+D.VERSION = '0.92.1';
 D.SAVE_KEY = 'smeltworks-idle-v1';
 /* Play data (js/telemetry.js): where it is posted, and the only addresses of the game it is ever sent from */
 D.TELEMETRY = { url: 'https://smeltworks-idle-logging.sdwr.workers.dev/ingest', hosts: ['sdwr.github.io'] };
@@ -516,20 +516,20 @@ D.FORGE = {
 const M = (name, spr, pal, hp, hit, int) => ({ name, spr, pal, hp, hit, int: int * D.SWING });
 D.ACTS = [
   { name: 'Ashen Hollow', sky: ['#1d1a26', '#2c2330'], ground: '#241d22',
-    mobs: [M('Ash Rat', 'rat', 'ash', 0.6, 0.5, 1.2), M('Soot Wolf', 'wolf', 'soot', 0.9, 0.8, 1.5), M('Cinder Bandit', 'bandit', 'bandit', 1.0, 0.9, 1.7), M('Bandit Archer', 'caster', 'bandit', 0.75, 1.1, 2.1), M('Ember Boar', 'boar', 'boar', 1.5, 2.2, 3.0)],
-    boss: M('Grukk, the Slag Ogre', 'ogre', 'ogre', 1, 1.7, 2.0) },
+    mobs: [M('Ash Rat', 'd_rat', 'ash', 0.6, 0.5, 1.2), M('Soot Wolf', 'd_wolf', 'soot', 0.9, 0.8, 1.5), M('Cinder Bandit', 'd_bandit', 'bandit', 1.0, 0.9, 1.7), M('Bandit Archer', 'd_archer', 'bandit', 0.75, 1.1, 2.1), M('Ember Boar', 'd_boar', 'boar', 1.5, 2.2, 3.0)],      // the d_ sprites are drawn sheets (img/)
+    boss: M('Grukk, the Slag Ogre', 'd_ogre', 'ogre', 1, 1.7, 2.0) },
   { name: 'Cinder Mines', sky: ['#1e1512', '#35201a'], ground: '#2a1c18',
-    mobs: [M('Kobold Digger', 'imp', 'kobold', 0.6, 0.6, 1.3), M('Ember Bat', 'bat', 'ember', 0.6, 0.5, 1.0), M('Slag Ooze', 'slime', 'slag', 1.2, 1.0, 1.9), M('Kobold Shaman', 'caster', 'kobold', 0.8, 1.1, 2.2), M('Slag Golem', 'golem', 'slag', 1.8, 2.3, 3.0)],
-    boss: M('The Foreman', 'bgolem', 'slag', 1.1, 1.9, 2.2) },
+    mobs: [M('Kobold Digger', 'd_kobold', 'kobold', 0.6, 0.6, 1.3), M('Ember Bat', 'd_bat', 'ember', 0.6, 0.5, 1.0), M('Slag Ooze', 'd_ooze', 'slag', 1.2, 1.0, 1.9), M('Kobold Shaman', 'd_shaman', 'kobold', 0.8, 1.1, 2.2), M('Slag Golem', 'd_golem', 'slag', 1.8, 2.3, 3.0)],
+    boss: M('The Foreman', 'd_foreman', 'slag', 1.1, 1.9, 2.2) },
   { name: 'Drowned Crypt', sky: ['#101a20', '#16282c'], ground: '#14201f',
-    mobs: [M('Drowned Bones', 'skeleton', 'bone', 0.9, 0.9, 1.6), M('Bone Archer', 'skeleton', 'boneb', 0.65, 1.1, 2.0), M('Crypt Ghoul', 'ghoul', 'ghoul', 1.25, 0.9, 1.5), M('Tide Wraith', 'wraith', 'wraith', 0.8, 1.0, 1.7), M('Necromancer', 'caster', 'necro', 0.9, 1.3, 2.4)],
-    boss: M('Morvane, the Drowned Lich', 'lich', 'lich', 1.05, 1.6, 1.9) },
+    mobs: [M('Drowned Bones', 'd_bones', 'bone', 0.9, 0.9, 1.6), M('Bone Archer', 'd_barcher', 'boneb', 0.65, 1.1, 2.0), M('Crypt Ghoul', 'd_ghoul', 'ghoul', 1.25, 0.9, 1.5), M('Tide Wraith', 'd_wraith', 'wraith', 0.8, 1.0, 1.7), M('Necromancer', 'd_necro', 'necro', 0.9, 1.3, 2.4)],
+    boss: M('Morvane, the Drowned Lich', 'd_lich', 'lich', 1.05, 1.6, 1.9) },
   { name: 'Stormspire', sky: ['#121a34', '#20294a'], ground: '#1a2036',
-    mobs: [M('Gale Harpy', 'bat', 'harpy', 0.75, 0.6, 1.05), M('Storm Cultist', 'caster', 'storm', 0.85, 1.2, 2.0), M('Spark Wisp', 'wisp', 'spark', 0.5, 0.7, 1.4), M('Wyrmling', 'wyrm', 'wyrm', 1.2, 0.9, 1.6), M('Gargoyle', 'golem', 'stone', 1.9, 2.2, 2.8)],
-    boss: M('Azzurath, the Tempest Wyrm', 'dragon', 'storm', 1.15, 1.5, 1.7) },
+    mobs: [M('Gale Harpy', 'd_harpy', 'harpy', 0.75, 0.6, 1.05), M('Storm Cultist', 'd_cultist', 'storm', 0.85, 1.2, 2.0), M('Spark Wisp', 'd_wisp', 'spark', 0.5, 0.7, 1.4), M('Wyrmling', 'd_wyrmling', 'wyrm', 1.2, 0.9, 1.6), M('Gargoyle', 'd_gargoyle', 'stone', 1.9, 2.2, 2.8)],
+    boss: M('Azzurath, the Tempest Wyrm', 'd_wyrm', 'storm', 1.15, 1.5, 1.7) },
   { name: 'Hellforge', sky: ['#200a0c', '#3a1210'], ground: '#2a0f0e',
-    mobs: [M('Forge Imp', 'imp', 'hell', 0.6, 0.6, 1.15), M('Hellhound', 'wolf', 'hell', 1.0, 0.8, 1.25), M('Ember Witch', 'caster', 'hell', 0.9, 1.3, 2.2), M('Hell Knight', 'knight', 'hell', 1.5, 1.4, 1.8), M('Chain Brute', 'ghoul', 'hell', 1.9, 2.4, 2.8)],
-    boss: M('Vulkar, the Forge Tyrant', 'demon', 'hell', 1.2, 1.7, 1.8) },
+    mobs: [M('Forge Imp', 'd_imp', 'hell', 0.6, 0.6, 1.15), M('Hellhound', 'd_hound', 'hell', 1.0, 0.8, 1.25), M('Ember Witch', 'd_witch', 'hell', 0.9, 1.3, 2.2), M('Hell Knight', 'd_knight', 'hell', 1.5, 1.4, 1.8), M('Chain Brute', 'd_brute', 'hell', 1.9, 2.4, 2.8)],
+    boss: M('Vulkar, the Forge Tyrant', 'fiend', 'hell', 1.2, 1.7, 1.8) },
 ];
 D.ACT_LEVELS = 5;
 D.act = lvl => D.ACTS[Math.floor((lvl - 1) / D.ACT_LEVELS) % D.ACTS.length];

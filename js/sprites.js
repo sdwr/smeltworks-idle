@@ -877,9 +877,69 @@ function grid(name) {
   const rows = d.m ? d.rows.map(r => r + r.split('').reverse().join('')) : d.rows;
   return (d.grid = rows);
 }
-SP.size = name => { const g = grid(name); return { w: g[0].length + 2, h: g.length + 2 }; };
+/* ---- Sprites kept as image sheets (img/), for art that is drawn and not built from the grids above. A sheet is
+   rows of animations, every frame the same size. Anything that asks for a sprite by name gets one of these if the
+   name is here: SP.size, SP.canvas and SP.draw all answer for it. */
+SP.SHEETS = {
+  // rows: animation -> [row, frames]. box: the figure inside a frame [left, top, right, bottom], which is what it is
+  // sized and stood by. side: it is drawn facing right, and may be turned to face left.
+  fiend:    { src: 'img/fiend.png',    fw: 112, fh: 112, fps: 9, rows: { idle: [0, 8], walk: [1, 8], attack: [2, 8] }, box: [14, 9, 97, 104] },
+  d_ogre:   { src: 'img/d_ogre.png',   fw: 80, fh: 80, fps: 9, rows: { idle: [0, 8], walk: [1, 8], attack: [2, 8] }, box: [15, 10, 63, 71], side: true },
+  d_boar:   { src: 'img/d_boar.png',   fw: 64, fh: 64, fps: 9, rows: { idle: [0, 8], walk: [1, 8], attack: [2, 8] }, box: [2, 8, 56, 55], side: true },
+  d_wolf:   { src: 'img/d_wolf.png',   fw: 64, fh: 64, fps: 9, rows: { idle: [0, 8], walk: [1, 8], attack: [2, 6] }, box: [4, 10, 55, 56], side: true },
+  d_archer: { src: 'img/d_archer.png', fw: 64, fh: 64, fps: 7, rows: { idle: [0, 8], walk: [1, 8], attack: [2, 6] }, box: [5, 8, 52, 56], side: true },
+  d_bandit: { src: 'img/d_bandit.png', fw: 64, fh: 64, fps: 9, rows: { idle: [0, 8], walk: [1, 8], attack: [2, 8] }, box: [7, 7, 49, 56], side: true },
+  d_kobold: { src: 'img/d_kobold.png', fw: 64, fh: 64, fps: 9, rows: { idle: [0, 8], walk: [1, 8], attack: [2, 8] }, box: [4, 7, 59, 59], side: true },
+  d_bat: { src: 'img/d_bat.png', fw: 80, fh: 80, fps: 9, rows: { idle: [0, 8], walk: [1, 8], attack: [2, 8] }, box: [8, 21, 72, 78], side: true },
+  d_ooze: { src: 'img/d_ooze.png', fw: 80, fh: 80, fps: 8, rows: { idle: [0, 8], walk: [1, 8], attack: [2, 8] }, box: [10, 26, 69, 72], side: true },
+  d_shaman: { src: 'img/d_shaman.png', fw: 80, fh: 80, fps: 9, rows: { idle: [0, 8], walk: [1, 8], attack: [2, 8] }, box: [10, 14, 69, 72], side: true },
+  d_golem: { src: 'img/d_golem.png', fw: 64, fh: 64, fps: 8, rows: { idle: [0, 8], walk: [1, 8], attack: [2, 8] }, box: [7, 6, 56, 60], side: true },
+  d_foreman: { src: 'img/d_foreman.png', fw: 96, fh: 96, fps: 8, rows: { idle: [0, 8], walk: [1, 8], attack: [2, 8] }, box: [15, 14, 82, 88], side: true },
+  d_bones: { src: 'img/d_bones.png', fw: 80, fh: 80, fps: 9, rows: { idle: [0, 8], walk: [1, 8], attack: [2, 8] }, box: [12, 18, 68, 72], side: true },
+  d_barcher: { src: 'img/d_barcher.png', fw: 80, fh: 80, fps: 9, rows: { idle: [0, 8], walk: [1, 8], attack: [2, 8] }, box: [14, 14, 63, 72], side: true },
+  d_ghoul: { src: 'img/d_ghoul.png', fw: 80, fh: 80, fps: 9, rows: { idle: [0, 8], walk: [1, 8], attack: [2, 8] }, box: [19, 14, 60, 72], side: true },
+  d_wraith: { src: 'img/d_wraith.png', fw: 80, fh: 80, fps: 9, rows: { idle: [0, 8], walk: [1, 8], attack: [2, 8] }, box: [11, 16, 70, 76], side: true },
+  d_necro: { src: 'img/d_necro.png', fw: 80, fh: 80, fps: 9, rows: { idle: [0, 8], walk: [1, 8], attack: [2, 5] }, box: [21, 14, 58, 72], side: true },
+  d_lich: { src: 'img/d_lich.png', fw: 96, fh: 96, fps: 8, rows: { idle: [0, 8], walk: [1, 8], attack: [2, 8] }, box: [20, 15, 75, 88], side: true },
+  d_harpy: { src: 'img/d_harpy.png', fw: 80, fh: 80, fps: 9, rows: { idle: [0, 8], walk: [1, 8], attack: [2, 8] }, box: [9, 10, 70, 79], side: true },
+  d_cultist: { src: 'img/d_cultist.png', fw: 80, fh: 80, fps: 9, rows: { idle: [0, 8], walk: [1, 8], attack: [2, 8] }, box: [24, 14, 56, 72], side: true },
+  d_wisp: { src: 'img/d_wisp.png', fw: 64, fh: 64, fps: 9, rows: { idle: [0, 8], walk: [1, 8], attack: [2, 8] }, box: [6, 6, 57, 64], side: true },
+  d_wyrmling: { src: 'img/d_wyrmling.png', fw: 80, fh: 80, fps: 9, rows: { idle: [0, 8], walk: [1, 8], attack: [2, 8] }, box: [11, 20, 68, 72], side: true },
+  d_gargoyle: { src: 'img/d_gargoyle.png', fw: 80, fh: 80, fps: 8, rows: { idle: [0, 8], walk: [1, 8], attack: [2, 8] }, box: [12, 12, 66, 72], side: true },
+  d_wyrm: { src: 'img/d_wyrm.png', fw: 96, fh: 96, fps: 8, rows: { idle: [0, 8], walk: [1, 8], attack: [2, 8] }, box: [5, 6, 87, 91], side: true },
+  d_imp: { src: 'img/d_imp.png', fw: 64, fh: 64, fps: 9, rows: { idle: [0, 8], walk: [1, 8], attack: [2, 8] }, box: [6, 4, 59, 60], side: true },
+  d_hound: { src: 'img/d_hound.png', fw: 80, fh: 80, fps: 9, rows: { idle: [0, 8], walk: [1, 8], attack: [2, 8] }, box: [11, 21, 69, 72], side: true },
+  d_witch: { src: 'img/d_witch.png', fw: 80, fh: 80, fps: 9, rows: { idle: [0, 4], walk: [1, 8], attack: [2, 8] }, box: [24, 15, 56, 72], side: true },
+  d_knight: { src: 'img/d_knight.png', fw: 80, fh: 80, fps: 9, rows: { idle: [0, 8], walk: [1, 8], attack: [2, 8] }, box: [9, 12, 69, 72], side: true },
+  d_brute: { src: 'img/d_brute.png', fw: 80, fh: 80, fps: 8, rows: { idle: [0, 8], walk: [1, 8], attack: [2, 8] }, box: [11, 13, 68, 72], side: true },
+  d_rat:    { src: 'img/d_rat.png',    fw: 64, fh: 64, fps: 9, rows: { idle: [0, 8], walk: [1, 8], attack: [2, 8] }, box: [8, 18, 55, 45], side: true },
+};
+const sheetImg = new Map(), sheetCache = new Map();
+function sheetImage(name) {
+  let im = sheetImg.get(name);
+  if (!im && typeof Image !== 'undefined') { im = new Image(); im.src = SP.SHEETS[name].src; sheetImg.set(name, im); }
+  return im && im.complete && im.naturalWidth ? im : null;
+}
+/* which frame of an animation: v is seconds for one that loops, and 0..1 through it for an attack */
+SP.frame = function (name, anim, v) {
+  const d = SP.SHEETS[name], [row, n] = d.rows[anim] || d.rows.idle;
+  return { row, i: anim === 'attack' ? Math.min(n - 1, Math.max(0, Math.floor(v * n))) : ((Math.floor(v * d.fps) % n) + n) % n };
+};
+function sheetCanvas(name, mode, fr) {
+  const d = SP.SHEETS[name], row = fr ? fr.row : 0, i = fr ? fr.i : 0, key = name + '|' + (mode || '') + '|' + row + '|' + i;
+  let c = sheetCache.get(key); if (c) return c;
+  const im = sheetImage(name);
+  c = document.createElement('canvas'); c.width = d.fw; c.height = d.fh;
+  if (!im) return c;                      // not loaded yet: an empty frame, and not kept
+  const x = c.getContext('2d'); x.imageSmoothingEnabled = false;
+  x.drawImage(im, i * d.fw, row * d.fh, d.fw, d.fh, 0, 0, d.fw, d.fh);
+  if (mode === 'flash' || mode === 'shade') { x.globalCompositeOperation = 'source-in'; x.fillStyle = mode === 'flash' ? '#ffffff' : '#000000'; x.fillRect(0, 0, d.fw, d.fh); }
+  sheetCache.set(key, c); return c;
+}
+SP.size = name => { if (SP.SHEETS[name]) { const b = SP.SHEETS[name].box; return { w: b[2] - b[0], h: b[3] - b[1] }; } /* (a sheet's size is its figure's, not its frame's) */ const g = grid(name); return { w: g[0].length + 2, h: g.length + 2 }; };
 /* returns a canvas with the sprite at 1px per cell, plus a dark outline. opts: flash (all white), tint */
-SP.canvas = function (name, pal, mode) {
+SP.canvas = function (name, pal, mode, fr) {
+  if (SP.SHEETS[name]) return sheetCanvas(name, mode, fr);
   const key = name + '|' + pal + '|' + (mode || '');
   let c = cache.get(key);
   if (c) return c;
@@ -915,7 +975,7 @@ SP.url = function (name, pal, scale) {
   return u;
 };
 SP.draw = function (ctx, name, pal, x, y, scale, o) {
-  const c = SP.canvas(name, pal, o && o.mode);
+  const c = SP.canvas(name, pal, o && o.mode, o && o.fr);
   const w = c.width * scale, h = c.height * scale;
   ctx.save();
   ctx.translate(x, y);
@@ -924,7 +984,9 @@ SP.draw = function (ctx, name, pal, x, y, scale, o) {
   if (o && o.alpha != null) ctx.globalAlpha *= o.alpha;
   ctx.imageSmoothingEnabled = false;
   // anchor: bottom centre unless told otherwise
-  const ax = o && o.ax != null ? o.ax : 0.5, ay = o && o.ay != null ? o.ay : 1;
+  let ax = o && o.ax != null ? o.ax : 0.5, ay = o && o.ay != null ? o.ay : 1;
+  const d = SP.SHEETS[name];
+  if (d) { ax = (d.box[0] + ax * (d.box[2] - d.box[0])) / d.fw; ay = (d.box[1] + ay * (d.box[3] - d.box[1])) / d.fh; }      // a sheet is stood by its figure, wherever that is in the frame
   ctx.drawImage(c, -w * ax, -h * ay, w, h);
   ctx.restore();
 };

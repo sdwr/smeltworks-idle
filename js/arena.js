@@ -37,7 +37,13 @@ const byId = id => G.F.es.find(e => e.id === id);
 const state = id => { let a = anim.get(id); if (!a) anim.set(id, a = { flash: 0, cool: 0, swing: 0, dir: 0, out: 0 }); return a; };
 /* effects are kept quiet on purpose: a faint flash when an enemy is hit, a small step when it swings, and red at the
    edges only when a fight is lost */
-function eScale(e) { return Math.max(1, Math.round(e.r * 2.5 * (sx + sy) / 2 / SP.size(e.spr).h)); }
+function eScale(e) {
+  const z = SP.size(e.spr), big = e.r * 2.5 * (sx + sy) / 2;
+  // a drawn figure: sized by its height (or its length, for one on four legs), in quarter steps. All but an act's boss are kept
+  // to a middling size, whatever their weight in the fight: shrunk small or blown up large, drawn pixels go wrong
+  if (SP.SHEETS[e.spr]) { const k = Math.round(big * 1.12 / Math.max(z.h, z.w * 0.8) * 4) / 4, u = Math.max(1, (sx + sy) / 2 / 5); return e.r >= 10.5 ? Math.max(1, k) : e.boss ? U.clamp(k, 1.75 * u, 2 * u) : U.clamp(k, 1.25 * u, 1.5 * u); }      // (an Elder stands a little taller than the rank and file, and no more)
+  return Math.max(1, Math.round(big / z.h));
+}
 function float(x, y, txt, color, size, life) {
   if (floats.length > 70) floats.shift();
   floats.push({ x, y, vx: (Math.random() - 0.5) * 26, vy: -62 - Math.random() * 26, txt, color, size: size || 14, life: life || 0.9, max: life || 0.9 });
@@ -130,9 +136,9 @@ function paintFloor(act) {
     for (let x = -120 + (row % 2) * 7; x <= 120; x += 14) { c.moveTo(Math.round(X_(x)) + 0.5, Y_(y)); c.lineTo(Math.round(X_(x)) + 0.5, Y_(y + 9)); }
   }
   c.stroke();
-  // the pit in the middle where the enemies gather, and the ring the weapons stand on
+  // the middle where the enemies gather is lit, so dark monsters stand out against it; and the ring the weapons stand on
   const pit = c.createRadialGradient(cx, cy, 0, cx, cy, 26 * sx);
-  pit.addColorStop(0, 'rgba(0,0,0,.5)'); pit.addColorStop(0.7, 'rgba(0,0,0,.3)'); pit.addColorStop(1, 'rgba(0,0,0,0)');
+  pit.addColorStop(0, 'rgba(255,236,214,.2)'); pit.addColorStop(0.6, 'rgba(255,236,214,.13)'); pit.addColorStop(1, 'rgba(255,236,214,0)');
   c.fillStyle = pit; c.beginPath(); c.ellipse(cx, cy, 26 * sx, 26 * sy, 0, 0, Math.PI * 2); c.fill();
   c.strokeStyle = 'rgba(255,138,42,.16)'; c.lineWidth = 2; c.setLineDash([2, 7]);
   c.beginPath(); c.ellipse(cx, cy, D.RING * sx, D.RING * sy, 0, 0, Math.PI * 2); c.stroke(); c.setLineDash([]);
@@ -230,7 +236,7 @@ function badge(key, col, x, y, s, e) {
 
 function drawEnemy(e, enc, many, lit, dt) {
   const a = state(e.id), sc = eScale(e), sz = SP.size(e.spr), w = sz.w * sc, h = sz.h * sc;
-  a.flash = Math.max(0, a.flash - dt); a.cool -= dt; a.swing = Math.max(0, a.swing - dt * 3.6);
+  a.flash = Math.max(0, a.flash - dt); a.cool -= dt; a.swing = Math.max(0, a.swing - dt * (SP.SHEETS[e.spr] ? 1.5 : 3.6));      // (a drawn attack has eight frames to show)
   if (a.out > 0) a.out = Math.min(1, a.out + dt * 3.4);
   const alpha = e.dead && !enc.lost ? 1 - a.out : 1;
   if (alpha <= 0.01) return;
@@ -245,9 +251,12 @@ function drawEnemy(e, enc, many, lit, dt) {
     ctx.beginPath(); ctx.ellipse(X_(e.x), Y_(e.y) + h * 0.46, w * 0.42, h * 0.15, 0, 0, Math.PI * 2); ctx.stroke();
   }
   if (!e.dead) afflictUnder(e, x, y, w, h);
-  SP.draw(ctx, e.spr, e.pal, x, y + (e.dead && !enc.lost ? a.out * 8 : 0), sc, { ay: 0.5, alpha });
+  // a drawn sheet has its own frames: the blow when it swings, a walk when it moves, and its idle otherwise
+  const fr = SP.SHEETS[e.spr] ? SP.frame(e.spr, a.swing > 0 && !e.dead ? 'attack' : e.mv && !e.dead ? 'walk' : 'idle', a.swing > 0 && !e.dead ? 1 - a.swing : t + e.id * 0.37) : null;
+  const flip = !!(SP.SHEETS[e.spr] && SP.SHEETS[e.spr].side && e.x < -0.5);      // one drawn in profile faces out from the middle
+  SP.draw(ctx, e.spr, e.pal, x, y + (e.dead && !enc.lost ? a.out * 8 : 0), sc, { ay: 0.5, alpha, fr, flip });
   if (e.dead) return;
-  if (a.flash > 0) SP.draw(ctx, e.spr, e.pal, x, y, sc, { ay: 0.5, alpha: 0.22, mode: 'flash' });
+  if (a.flash > 0) SP.draw(ctx, e.spr, e.pal, x, y, sc, { ay: 0.5, alpha: 0.22, mode: 'flash', fr, flip });
   // its swing: an arc cut into the air beside it, at nothing
   if (a.swing > 0) {
     const r = Math.max(22, Math.max(w, h) * (a.slam ? 0.8 : 0.6)), p = 1 - a.swing, ox = X_(e.x) + Math.cos(a.dir) * r * 0.55, oy = Y_(e.y) + Math.sin(a.dir) * r * 0.55;
