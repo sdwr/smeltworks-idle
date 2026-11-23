@@ -34,7 +34,7 @@ const U = SW.util = {
 };
 
 const D = SW.data = {};
-D.VERSION = '0.87.2';
+D.VERSION = '0.87.3';
 D.SAVE_KEY = 'smeltworks-idle-v1';
 /* Play data (js/telemetry.js): where it is posted, and the only addresses of the game it is ever sent from */
 D.TELEMETRY = { url: 'https://smeltworks-idle-logging.sdwr.workers.dev/ingest', hosts: ['sdwr.github.io'] };
