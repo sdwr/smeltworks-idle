@@ -74,6 +74,12 @@ G.dropping = () => D.ALL_SKILLS.filter(k => k.plain ? !G.colourOpen(k.c) : G.col
 G.dropRows = () => G.dropping().length / D.DROP_ROWS;
 /* how much the skills already loose in the bag slow the next drop: 1 with none, a half with D.DROP_HELD of them */
 G.dropSlow = () => 1 / (1 + G.S.bag.length / D.DROP_HELD);
+/* and how much a nearly bare bag hurries it. It goes by rows: of the kinds of skill open to drop, how many have one loose in the bag. With
+   none it is D.DROP_LOW.mult, easing to 1 as D.DROP_LOW.share of the rows are filled. Not for a boss, whose drop is fixed */
+G.dropHurry = function () {
+  const kinds = G.dropping(), have = new Set(G.S.bag.map(g => g.sk)), filled = kinds.filter(k => have.has(k.id)).length;
+  return 1 + (D.DROP_LOW.mult - 1) * Math.max(0, 1 - filled / (kinds.length * D.DROP_LOW.share));
+};
 /* is this enemy on fire enough to show it? (a burn fades out and never quite reaches nothing) */
 G.burning = e => !e.dead && e.burn > e.max * 0.0002;
 /* where a loose skill is: { gem, bag: index } or { gem, post: BENCH, i: socket }. Only the weapon on the bench has
@@ -770,7 +776,7 @@ function won() {
      colour open as it did with none. A boss's drops do not grow: one from an act's boss, one from any other boss every
      second time (D.DROP_BOSS), whatever is open. */
   // And the fuller the bag, the slower they come, a boss's too: a hoard is not added to at the rate an empty bag is filled
-  const want = (enc.boss ? D.DROP_BOSS[enc.actBoss ? 1 : 0] : D.DROP * enc.drop * X.dropMult * G.dropRows()) * G.dropSlow();
+  const want = (enc.boss ? D.DROP_BOSS[enc.actBoss ? 1 : 0] : D.DROP * enc.drop * X.dropMult * G.dropRows() * G.dropHurry()) * G.dropSlow();
   /* and they are evened out a little, so that they do not come in clumps and droughts: the run keeps count of how
      far its drops are behind what the odds owed it (or ahead), and half of that is added to (or taken from) the
      next fight's chance. Over a run the rate is the same; a long dry spell is not possible. */

@@ -238,7 +238,7 @@ function drawEnemy(e, enc, many, lit, dt) {
   const a = state(e.id), sc = eScale(e), sz = SP.size(e.spr), w = sz.w * sc, h = sz.h * sc;
   a.flash = Math.max(0, a.flash - dt); a.cool -= dt; a.swing = Math.max(0, a.swing - dt * (SP.SHEETS[e.spr] ? 1.5 : 3.6));      // (a drawn attack has eight frames to show)
   if (a.out > 0) a.out = Math.min(1, a.out + dt * 3.4);
-  const alpha = e.dead && !enc.lost ? 1 - a.out : 1;
+  const alpha = e.dead ? 1 - a.out : 1;      // (the ones you killed stay gone when the fight is lost: only the ones still standing are left on the field)
   if (alpha <= 0.01) return;
   // they burst out of the middle to their places
   const k = 1 - spawnT * spawnT, hop = Math.sin(a.swing * Math.PI) * (a.slam ? 4 : 2) * (e.stun > 0 ? 0 : 1);
@@ -254,7 +254,7 @@ function drawEnemy(e, enc, many, lit, dt) {
   // a drawn sheet has its own frames: the blow when it swings, a walk when it moves, and its idle otherwise
   const fr = SP.SHEETS[e.spr] ? SP.frame(e.spr, a.swing > 0 && !e.dead ? 'attack' : e.mv && !e.dead ? 'walk' : 'idle', a.swing > 0 && !e.dead ? 1 - a.swing : t + e.id * 0.37) : null;
   const flip = !!(SP.SHEETS[e.spr] && SP.SHEETS[e.spr].side && e.x < -0.5);      // one drawn in profile faces out from the middle
-  SP.draw(ctx, e.spr, e.pal, x, y + (e.dead && !enc.lost ? a.out * 8 : 0), sc, { ay: 0.5, alpha, fr, flip });
+  SP.draw(ctx, e.spr, e.pal, x, y + (e.dead ? a.out * 8 : 0), sc, { ay: 0.5, alpha, fr, flip });
   if (e.dead) return;
   if (a.flash > 0) SP.draw(ctx, e.spr, e.pal, x, y, sc, { ay: 0.5, alpha: 0.22, mode: 'flash', fr, flip });
   // its swing: an arc cut into the air beside it, at nothing

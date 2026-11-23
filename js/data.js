@@ -34,7 +34,7 @@ const U = SW.util = {
 };
 
 const D = SW.data = {};
-D.VERSION = '0.93.2';
+D.VERSION = '0.94.2';
 D.SAVE_KEY = 'smeltworks-idle-v1';
 /* Play data (js/telemetry.js): where it is posted, and the only addresses of the game it is ever sent from */
 D.TELEMETRY = { url: 'https://smeltworks-idle-logging.sdwr.workers.dev/ingest', hosts: ['sdwr.github.io'] };
@@ -493,6 +493,7 @@ D.twoChance = (lvl, boss) => Math.max(0, Math.min(1, (lvl - D.TWO.from + 1) * D.
 D.DROP = Math.min(0.6, 0.025 * D.PAY);       // a lone monster's chance to drop a skill; a group's is a little higher (D.ENC). Skills are scarce: about one a level
 D.DROP_BOSS = [0.5, 1];                      // a boss drops one every other time, and an act's boss always drops one
 D.DROP_EVEN = 0.5;     // how hard drops are pulled back towards what the odds owe: this share of the shortfall goes onto the next fight's chance
+D.DROP_LOW = { share: 0.5, mult: 2.5 };      // and the faster when the bag is nearly bare: a kind of skill is a row in the bag, and when fewer than this share of the rows you have open hold a skill they come faster, up to this many times as often with every row empty
 D.DROP_HELD = 8;       // and the more skills lie loose in the bag the slower they come: with this many held, half as often; with twice as many, a third
 D.DROP_ROW = 30;       // and which skill drops goes by the bag: each copy of a kind already in its row makes that kind this many times less likely, so empty rows fill first
 D.DROP_ROWS = 3;       // and that is with this many kinds of skill to drop (a new game's three plain ones): with more kinds open, drops come that much more often

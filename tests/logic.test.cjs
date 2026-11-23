@@ -304,7 +304,13 @@ test('skills drop more often the more kinds there are to drop, so one kind comes
   // a boss's drops do not grow: an act's boss drops one, whatever is open
   const b0 = rate([], 60, true), b8 = rate(['UMT', 'UHX', 'UAD'], 300, true); assert.equal(b0.per, 1); assert.equal(b8.per, 1); assert.deepEqual(Array.from(SWd().DROP_BOSS), [0.5, 1]);
   // the fuller the bag, the slower they come: half as often with eight loose in it, a third with sixteen, and a boss's drops the same
-  const h8 = rate([], 3000, false, 8), h16 = rate([], 3000, false, 16); near(h8.per / none.per, 1 / 2, 0.12, 'eight held:'); near(h16.per / none.per, 1 / 3, 0.1, 'sixteen held:');
+  const h8 = rate([], 3000, false, 8), h16 = rate([], 3000, false, 16); const low = SWd().DROP_LOW; assert.deepEqual([low.share, low.mult], [0.5, 2.5]);      // (an empty bag, as in `none`, is hurried by DROP_LOW.mult)
+  // a nearly bare bag hurries them, by rows: here three kinds are open and the held skills are all one kind, so one row of three is filled
+  const one = 1 + (low.mult - 1) * (1 - 1 / (3 * low.share));
+  near(h8.per / none.per, one / 2 / low.mult, 0.06, 'eight held:'); near(h16.per / none.per, one / 3 / low.mult, 0.05, 'sixteen held:');
+  const h1 = rate([], 3000, false, 1); near(none.per / h1.per, low.mult / (one / (1 + 1 / 8)), 0.4, 'no row filled against one:');
+  { const SW = begun(11), G = SW.game; near(G.dropHurry(), 2.5, 1e-9); gem(SW, 'pr'); near(G.dropHurry(), one, 1e-9); for (const k of G.dropping().slice(0, 2)) gem(SW, k.id); near(G.dropHurry(), 1, 1e-9, 'half the rows or more filled, no hurry:');
+    for (const id of ['UMT', 'UHX', 'UAD']) G.S.tree[id] = 1; G.recompute(); assert.equal(G.dropping().length, 10); assert.ok(G.dropHurry() > 1, 'more rows open, and the same bag is bare again'); }
   near(rate([], 400, true, 8).per, 0.5, 0.08, 'an act boss, eight held:'); assert.equal(SWd().DROP_HELD, 8);
 });
 test('drops are evened out: no long dry spell; and which kind drops goes by the bag, empty rows first', () => {
