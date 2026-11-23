@@ -266,6 +266,7 @@ const RIPPLE = { spread: 1.5, reach: 640, fade: 1.3, gap: 0.62, dark: 0.5, hold:
    something further out than its step would show is at the step that shows it. */
 const TREE_PAUSE = 1.05;                        // seconds between buying the node that opens the whole tree and the tree rippling out
 const TREE_WHOLE = 4;
+const REVEAL = { spread: 2.5, fade: 1.6, gap: 0.62 };     // a reveal's ripple: how long it takes to cross, how long a node takes to settle, and the second ring's delay (which is the music's second run: audio.js unlock)
 function treeStage() {
   const held = Object.keys(G.S.tree), core = id => D.TREE_GATE.includes(id) || D.TREE_FIRST.includes(id);
   if (held.some(id => D.TREE_POINTS.includes(id) || !D.TREE_INNER.includes(id))) return TREE_WHOLE;
@@ -276,35 +277,37 @@ function treeStage() {
 function treeSVG() {
   const at = id => id === 'start' ? { x: 0, y: 0 } : D.NODE[id];
   let stage = treeStage(); const now = performance.now() / 1000;
-  if (stage < 3 || !UI.pres) UI.treeWait = null;
+  if (stage < 2 || !UI.pres) UI.treeWait = null;
   if (UI.treeStage != null && stage > UI.treeStage && UI.pres) {      // a step opened while the page is up: what is new ripples out
-    if (stage >= 3) {                                                 // the inner tree, or the whole of it: a beat first, with what was just bought standing lit, and then it ripples out
+    if (stage >= 2) {                                                 // the square, the inner tree, or the whole of it: a beat first, with what was just bought standing lit, and then it comes (the square fades in; the other two ripple out). The music grows with them: its first run, then both short of the last note, then all of it
       if (UI.treeWait == null) { UI.treeWait = now + TREE_PAUSE; setTimeout(() => { UI.dirty = true; }, TREE_PAUSE * 1000 + 30); }
-      if (now < UI.treeWait) stage = UI.treeStage; else { UI.treeWait = null; UI.presAt = now; UI.ripMid = stage < TREE_WHOLE; UI.ripFrom = UI.treeStage; AU.play('unlock', null, { whole: stage === TREE_WHOLE }); }
+      if (now < UI.treeWait) stage = UI.treeStage; else { UI.treeWait = null; UI.presAt = now; UI.ripMid = stage === 3; UI.ripFrom = UI.treeStage; AU.play('unlock', null, { part: stage - 1 }); }
     } else UI.presAt = now;
   }
   UI.treeStage = stage;
   const shownAt = (stage, id) => id === 'start' || stage === TREE_WHOLE || D.TREE_GATE.includes(id) || (stage >= 1 && D.TREE_FIRST.includes(id)) || (stage >= 2 && D.TREE_SQUARE.includes(id)) || (stage >= 3 && D.TREE_INNER.includes(id));
   const shown = id => shownAt(stage, id);
-  const rt = performance.now() / 1000 - (UI.presAt == null ? -99 : UI.presAt), rip = rt < RIPPLE.spread + RIPPLE.fade + 0.4;
+  // (R: the timings in force. A reveal, when more of the tree is first shown, is slower than the page's opening: it is an event, and it was over too soon)
+  const R = UI.ripFrom != null ? REVEAL : RIPPLE;
+  const rt = performance.now() / 1000 - (UI.presAt == null ? -99 : UI.presAt), rip = rt < R.spread + R.fade + 0.4;
   // (full: the ripple proper, rings and all. It is the whole tree's, and the inner tree's at the moment it is first shown: that one is a third the size, so its ripple goes a third as far in the same time)
-  const full = stage === TREE_WHOLE || (UI.ripMid && rip), reach = stage === TREE_WHOLE ? RIPPLE.reach : 235, ring = RIPPLE.spread * 740 / reach;      // (a ring is drawn out to 740, at the ripple's own pace)
+  const full = stage === TREE_WHOLE || (UI.ripMid && rip), reach = stage === TREE_WHOLE ? RIPPLE.reach : 235, ring = R.spread * 740 / reach;      // (a ring is drawn out to 740, at the ripple's own pace)
   // (the page just opened: what is held comes up out of the dark first, by itself, and that is counted from the opening, not from the ripple)
   const opening = rip && UI.presOpen != null && UI.presAt === UI.presOpen + RIPPLE.hold, od = opening ? (UI.presOpen + RIPPLE.dark - performance.now() / 1000).toFixed(2) + 's' : '';
   // (one of the two beside the first weapon taken and the other not: they come up together, as a pair, with what is held, and neither waits for the ripple)
   // (kept: what was already on show when a wider tree is revealed stays as it is, bought or not. Only what is new comes in with the ripple)
-  const kept = id => rip && UI.ripFrom != null && shownAt(UI.ripFrom, id);
+  const kept = id => full && rip && UI.ripFrom != null && shownAt(UI.ripFrom, id);
   const early = id => opening && !full && id !== 'start' && !G.has(id);      // (and so does everything else there is to see before the whole tree has opened: there is no ripple until then, only the fade)
-  const rd = (x, y, held) => rip ? `animation-delay:${held && opening ? od + ',' : ''}${((!full ? 0 : Math.hypot(x, y) / reach * RIPPLE.spread) - rt).toFixed(2)}s;` : '';
+  const rd = (x, y, held) => rip ? `animation-delay:${held && opening ? od + ',' : ''}${((!full ? 0 : Math.hypot(x, y) / reach * R.spread) - rt).toFixed(2)}s;` : '';
   const rgd = rip ? `animation-delay:${(0.5 - rt).toFixed(2)}s` : '';      // the four names come up with the ripple too, not before it
-  let h = `<svg id="tree"${rip ? ` class="ripple${!full ? ' one' : ''}${opening ? ' opening' : ''}"${opening ? ` style="--od:${od}"` : ''}` : ''} viewBox="-615 -372 1230 744" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+  let h = `<svg id="tree"${rip ? ` class="ripple${!full ? ' one' : ''}${UI.ripFrom != null ? ' slow' : ''}${opening ? ' opening' : ''}"${opening ? ` style="--od:${od}"` : ''}` : ''} viewBox="-615 -372 1230 744" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
     <defs>
       <radialGradient id="gorb" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset=".45" stop-color="#fff" stop-opacity=".08"/><stop offset="1" stop-color="#000" stop-opacity=".28"/></radialGradient>
     </defs>
     <g class="bg">${stage < TREE_WHOLE ? '' : `
       <text class="region" x="-575" y="-318" style="--c:#ff9a4a;${rgd}">ARSENAL</text><text class="region" x="575" y="-318" text-anchor="end" style="--c:#b48cff;${rgd}">WORKSHOP</text>
       <text class="region" x="0" y="-348" text-anchor="middle" style="--c:#5aa8ff;${rgd}">CONTROL</text><text class="region" x="0" y="360" text-anchor="middle" style="--c:#ff5a48;${rgd}">ATTRITION</text>`}
-    </g>${rip ? (!full ? [] : [0.12, 0.12 + RIPPLE.gap]).map(d => `<circle class="ripwave${stage < TREE_WHOLE ? ' mid' : ''}" r="100" style="animation-duration:${(stage < TREE_WHOLE ? RIPPLE.spread * 270 / reach : ring).toFixed(2)}s;animation-delay:${(d - rt).toFixed(2)}s"/>`).join('') : ''}<g class="links">`;
+    </g>${rip ? (!full ? [] : [0.12, 0.12 + R.gap]).map(d => `<circle class="ripwave${stage < TREE_WHOLE ? ' mid' : ''}" r="100" style="animation-duration:${(stage < TREE_WHOLE ? R.spread * 270 / reach : ring).toFixed(2)}s;animation-delay:${(d - rt).toFixed(2)}s"/>`).join('') : ''}<g class="links">`;
   for (const n of D.TREE) for (const l of n.links) {
     if (!shown(n.id) || !shown(l)) continue;
     const a = at(l), on = G.has(n.id) && G.has(l), next = !on && ((G.has(l) && G.canAllocate(n.id)) || (G.has(n.id) && l !== 'start' && G.canAllocate(l)));

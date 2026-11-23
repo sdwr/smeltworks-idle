@@ -358,6 +358,8 @@ button.buyskill { display: block; width: 100%; margin: 0 0 8px; padding: 11px 12
 @keyframes ripglow { 0%, 100% { filter: brightness(1); } 20% { filter: brightness(1.32); } 46% { filter: brightness(1); } 68% { filter: brightness(1.2); } }
 #tree .ripwave { fill: none; stroke: #ffd98a; stroke-width: 1.2; vector-effect: non-scaling-stroke; transform-origin: 0 0; pointer-events: none; animation: ripwave 1.7s linear both; }
 @keyframes ripwave { 0% { transform: scale(0); opacity: 0; } 8% { opacity: .32; } 60% { opacity: .16; } 100% { transform: scale(7.4); opacity: 0; } }
+/* the square round the middle, when it is first shown: an unhurried fade (it was over in half a second) */
+#tree.ripple.one.slow .node, #tree.ripple.one.slow .link { animation-duration: 1.5s; }
 /* the inner tree's ring: it goes out as far as that tree does and no further */
 #tree .ripwave.mid { animation-name: ripwavemid; }
 @keyframes ripwavemid { 0% { transform: scale(0); opacity: 0; } 10% { opacity: .32; } 60% { opacity: .18; } 100% { transform: scale(2.7); opacity: 0; } }
