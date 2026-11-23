@@ -99,8 +99,15 @@ test('a new game has the cursor alone: the first point is the weapon in the midd
   S.run.earn = 2; assert.ok(G.prestige()); assert.equal(G.spent(), 1); assert.equal(G.cores(), 2); assert.equal(G.allocate('w1'), false, 'nothing else touches the weapon'); assert.equal(G.allocate('UHX'), false);
   assert.ok(G.canAllocate('UPG') && G.canAllocate('F2')); assert.ok(G.allocate('UPG')); assert.equal(G.cores(), 0); assert.equal(G.allocate('F2'), false, 'two cores, one of them');
   assert.ok(G.unallocate('UPG'), 'a slip can be handed back, while the tree is still open'); assert.equal(G.cores(), 2); assert.ok(G.allocate('F2')); assert.equal(G.cores(), 0);
-  S.bank = 9; assert.equal(G.nodeCost('UHX'), 4, 'a colour of skill'); assert.ok(G.allocate('UHX')); assert.equal(G.nodeCost('UAD'), 4, 'and buying one did not move the others'); assert.equal(G.nodeCost('e1'), 5, 'the first skill tier'); assert.ok(G.allocate('e1')); assert.equal(G.cores(), 0);
-  assert.equal(G.unallocate('F1'), false); assert.equal(G.unallocate('F2'), false, 'they stay while anything hangs from them'); assert.ok(G.unallocate('e1')); assert.ok(G.unallocate('UHX')); assert.equal(G.cores(), 9, 'each for what it cost');
+  // Upgrade and the socket are the first two after the weapon: nothing else can be bought until both are held, whatever it touches
+  S.bank = 11; assert.deepEqual(Array.from(D.TREE_FIRST), ['UPG', 'F2']); assert.equal(G.nodeCost('UHX'), 4, 'a colour of skill');
+  for (const id of ['UHX', 'UBY', 'UAD', 'e1', 'N0']) { assert.ok(D.NODE[id].near.includes('F2'), id); assert.ok(G.gated(id), id); assert.equal(G.touches(id), false); assert.equal(G.allocate(id), false, id + ' waits for Upgrade'); }
+  assert.equal(G.gated('UPG'), false); assert.ok(G.allocate('UPG')); assert.ok(G.firstHeld()); assert.equal(G.gated('UHX'), false);
+  assert.ok(G.allocate('UHX')); assert.equal(G.nodeCost('UAD'), 4, 'and buying one did not move the others'); assert.equal(G.nodeCost('e1'), 5, 'the first skill tier'); assert.ok(G.allocate('e1')); assert.equal(G.cores(), 0);
+  assert.equal(G.unallocate('F1'), false); assert.equal(G.unallocate('F2'), false, 'they stay while anything hangs from them'); assert.equal(G.unallocate('UPG'), false, 'and so does Upgrade, though nothing held hangs from it: the two come first');
+  assert.ok(G.unallocate('e1')); assert.ok(G.unallocate('UHX')); assert.equal(G.cores(), 9, 'each for what it cost'); assert.ok(G.unallocate('UPG')); assert.equal(G.cores(), 11); S.bank = 9;
+  // a save that bought past them when it could keeps what it has, and buys the missing one before anything more
+  S.tree.UHX = 1; assert.ok(G.gated('UAD')); assert.equal(G.allocate('UAD'), false); assert.ok(G.canAllocate('UPG')); assert.ok(G.canRemove('UHX')); delete S.tree.UHX;
   assert.ok(G.unallocate('F2')); assert.ok(G.unallocate('F1'), 'and the weapon, bought two runs ago, once nothing hangs from it'); assert.equal(G.cores(), 12); assert.ok(G.allocate('F1')); assert.ok(G.allocate('F2')); S.bank = 0;
   // the third run: one post, a weapon of one socket, and skills from the first fights
   assert.ok(G.beginRun()); assert.equal(S.posts.length, 1); assert.ok(G.skillsOn()); assert.equal(forge(SW).sockets.length, 1);
@@ -638,7 +645,7 @@ test('the tree: hubs where paths meet, themed small nodes between them, a notabl
   assert.ok(total > 3000 && total < 8000, 'the whole tree: ' + total); assert.equal(G1.cores(), 1e9 - total);
   // what the bot does with its cores: the weapon, a socket and the Market first, saving for each; then whatever adds most for its price
   const got = n => { S.bank = n; S.alloc = true; allocTree(SW); return G.spent(); };
-  assert.equal(got(2), 2, 'not enough for the Market: it saves'); assert.equal(G.cores(), 2); assert.equal(got(5), 3); assert.ok(G.has('UBY')); assert.equal(G.cores(), 0); got(60); assert.ok(G.has('ULF') && G.has('UPG'), 'Life and Upgrade soon after');
+  assert.equal(got(2), 3, 'Upgrade, which comes before anything else'); assert.ok(G.has('UPG')); assert.equal(G.cores(), 0); assert.equal(got(4), 3, 'not enough for the Market: it saves'); assert.equal(G.cores(), 4); assert.equal(got(5), 4); assert.ok(G.has('UBY')); assert.equal(G.cores(), 0); got(60); assert.ok(G.has('ULF') && G.has('UPG'), 'Life and Upgrade soon after');
   got(400); assert.ok(G.treeVal('post2') >= 2 && G.treeVal('sock2') >= 1 && G.treeVal('tier') >= 4, 'weapons, sockets and tiers together: ' + [G.treeVal('post2'), G.treeVal('sock2'), G.treeVal('tier')]); assert.ok(G.has('UPG'));
   assert.equal(got(1e6), 138, 'and with cores to burn, the whole tree');
   assert.ok(G.has('UBY') && G.has('URR')); assert.equal(D.NODE.URR.near.join(), 'UPG,PU1'); assert.equal(D.NODE.UBY.links.join(), 'F2'); assert.equal(D.NODE.CPK, undefined, 'there is no Standing order: which skill is bought goes by the bag');

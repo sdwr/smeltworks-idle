@@ -211,6 +211,14 @@ It is a separate game from `../smeltworks` and shares nothing with it at run tim
   **Every price is the node's own and never moves**: buying one thing makes nothing else dearer. It is distance that costs: the two sides mirror each other, and the far hubs are the dear ones. The whole tree is about 3,940 cores. Prices are all in `D.PRICE`.
 
   **The first node is the one in the middle: the first weapon.** A new game has none: no weapon can be made.
+  **Upgrade and the Forge socket, the two beside it, come next, in either order: nothing else can be bought until
+  both are held** (`D.TREE_FIRST`), whatever it touches, and neither can be unspecced while anything bought after
+  them is held. A locked node's tooltip says "Upgrade and Forge socket first". A save that bought past them when
+  it could keeps what it has, and buys the missing one before anything more.
+  **The tree is drawn in the same three steps**: the first weapon alone on a black page; then Upgrade and the
+  socket beside it; then, the moment both of those are held, all of it, rippling out from the middle as it does
+  when the page is opened. (Unspec one of the two and it closes again; a save that holds anything further out
+  always sees all of it.)
   The cursor clears level 1 by itself in about half a minute: that is one core, and the first prestige
   spends it there. **Two nodes lead out of it**, two cores each: the **first socket**
   to the east (skills with it: from then on enemies drop them) or **Upgrade** to the west. Everything else on

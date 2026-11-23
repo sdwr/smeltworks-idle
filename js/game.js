@@ -377,7 +377,10 @@ G.nodeCost = function (id) {
 G.gateHeld = () => D.TREE_GATE.every(G.has);
 G.skillsOn = () => G.craftSockets() > 0;
 /* a node can be bought, between runs, if it touches one that is held (or the start) and there are the cores for it */
-G.touches = id => { const n = D.NODE[id]; return !!n && !G.has(id) && n.near.some(G.has); };
+/* ...and, after the first weapon, Upgrade and the socket come before anything else (D.TREE_FIRST) */
+G.firstHeld = () => D.TREE_FIRST.every(G.has);
+G.gated = id => !D.TREE_GATE.includes(id) && !D.TREE_FIRST.includes(id) && !G.firstHeld();
+G.touches = id => { const n = D.NODE[id]; return !!n && !G.has(id) && !G.gated(id) && n.near.some(G.has); };
 G.canAllocate = id => G.S.alloc && G.touches(id) && G.cores() >= G.nodeCost(id);
 G.allocate = function (id) {
   const S = G.S; if (!G.canAllocate(id)) return false;
@@ -389,6 +392,7 @@ G.allocate = function (id) {
    so a tree is taken apart from its tips inwards. There is no clearing it all at once. */
 G.canRemove = function (id) {
   const S = G.S; if (!S.alloc || !S.tree[id]) return false;
+  if (D.TREE_FIRST.includes(id) && Object.keys(S.tree).some(k => !D.TREE_GATE.includes(k) && !D.TREE_FIRST.includes(k))) return false;      // Upgrade and the socket stay while anything bought after them is held
   const seen = new Set(['start']), todo = ['start'], near = x => x === 'start' ? D.TREE_START : D.NODE[x].near;
   while (todo.length) for (const y of near(todo.pop())) if (y !== id && y !== 'start' && S.tree[y] && !seen.has(y)) { seen.add(y); todo.push(y); }
   return seen.size === G.spent();          // the start, and every held node but this one

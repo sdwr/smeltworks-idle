@@ -230,7 +230,7 @@ function nodeTip(n) {
   h += `<div class="tc${poor > 0 ? ' poor' : ''}">${ci('core')}${fmt(c)}</div>`;
   if (!S.alloc) return h;
   const ok = G.canAllocate(n.id);
-  return h + `<div class="${ok ? 'tk' : 'tf'}">${ok ? 'Click to buy' : !G.touches(n.id) ? 'Not connected' : `${fmt(poor)} short`}</div>`;
+  return h + `<div class="${ok ? 'tk' : 'tf'}">${ok ? 'Click to buy' : G.gated(n.id) ? 'Upgrade and Forge socket first' : !G.touches(n.id) ? 'Not connected' : `${fmt(poor)} short`}</div>`;
 }
 /* The tree, drawn. Three shapes of big node, so that what a node is can be read from across the room: a hexagon is a
    hub (a troop post, a socket, the second bench), a rounded square unlocks something (rerolls, the market, a colour
@@ -244,24 +244,36 @@ const nodeShape = n => !n.big ? 'bead' : /^(post|sock)2?$/.test(n.eff) || n.eff 
    slow and quiet. The page is drawn again while that plays (and it must not start over), so every delay is counted
    from when the page opened. */
 const RIPPLE = { spread: 1.5, reach: 640, fade: 1.3, gap: 0.62 };      // seconds for a ripple to get from the centre to `reach` (the tree's far edge); how long a node's two swells take; and how far the second ripple is behind the first
+/* The tree opens in three steps: the first weapon alone; then Upgrade and the socket beside it; then, once both of
+   those are held, all of it, rippling out from the middle. (A save that holds anything further out sees all of it.) */
+function treeStage() {
+  const core = id => D.TREE_GATE.includes(id) || D.TREE_FIRST.includes(id);
+  if (G.firstHeld() || Object.keys(G.S.tree).some(id => !core(id))) return 2;
+  return D.TREE_GATE.every(G.has) ? 1 : 0;
+}
 function treeSVG() {
   const at = id => id === 'start' ? { x: 0, y: 0 } : D.NODE[id];
+  const stage = treeStage(), shown = id => id === 'start' || stage === 2 || D.TREE_GATE.includes(id) || (stage === 1 && D.TREE_FIRST.includes(id));
+  if (UI.treeStage != null && stage > UI.treeStage && UI.pres) UI.presAt = performance.now() / 1000;      // a step opened while the page is up: what is new ripples out
+  UI.treeStage = stage;
   const rt = performance.now() / 1000 - (UI.presAt == null ? -99 : UI.presAt), rip = rt < RIPPLE.spread + RIPPLE.fade + 0.4, ring = RIPPLE.spread * 740 / RIPPLE.reach;      // (a ring is drawn out to 740, at the ripple's own pace)
   const rd = (x, y) => rip ? `animation-delay:${(Math.hypot(x, y) / RIPPLE.reach * RIPPLE.spread - rt).toFixed(2)}s;` : '';
   let h = `<svg id="tree"${rip ? ' class="ripple"' : ''} viewBox="-615 -372 1230 744" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
     <defs>
       <radialGradient id="gorb" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset=".45" stop-color="#fff" stop-opacity=".08"/><stop offset="1" stop-color="#000" stop-opacity=".28"/></radialGradient>
     </defs>
-    <g class="bg">
+    <g class="bg">${stage < 2 ? '' : `
       <text class="region" x="-575" y="-318" style="--c:#ff9a4a">ARSENAL</text><text class="region" x="575" y="-318" text-anchor="end" style="--c:#b48cff">WORKSHOP</text>
-      <text class="region" x="0" y="-348" text-anchor="middle" style="--c:#5aa8ff">CONTROL</text><text class="region" x="0" y="360" text-anchor="middle" style="--c:#ff5a48">ATTRITION</text>
+      <text class="region" x="0" y="-348" text-anchor="middle" style="--c:#5aa8ff">CONTROL</text><text class="region" x="0" y="360" text-anchor="middle" style="--c:#ff5a48">ATTRITION</text>`}
     </g>${rip ? [0.12, 0.12 + RIPPLE.gap].map(d => `<circle class="ripwave" r="100" style="animation-duration:${ring.toFixed(2)}s;animation-delay:${(d - rt).toFixed(2)}s"/>`).join('') : ''}<g class="links">`;
   for (const n of D.TREE) for (const l of n.links) {
+    if (!shown(n.id) || !shown(l)) continue;
     const a = at(l), on = G.has(n.id) && G.has(l), next = !on && ((G.has(l) && G.canAllocate(n.id)) || (G.has(n.id) && l !== 'start' && G.canAllocate(l)));
     h += `<line class="link${on ? ' on' : next ? ' next' : ''}" style="--c:${D.TREE_EFF[n.eff].col};${rd((a.x + n.x) / 2, (a.y + n.y) / 2)}" x1="${a.x}" y1="${a.y}" x2="${n.x}" y2="${n.y}"/>`;
   }
   h += `</g><g class="startnode"><circle r="35" class="halo"/></g>`;
   for (const n of D.TREE) {
+    if (!shown(n.id)) continue;
     const E = D.TREE_EFF[n.eff], held = G.has(n.id), edge = !held && G.touches(n.id), open = edge && G.canAllocate(n.id), shape = nodeShape(n), R = shape === 'hub' ? 27 : n.big ? 21 : 7.5;      // a hub is the biggest thing on the tree: it matters most
     h += `<g class="node ${shape}${n.eff === 'tier' ? ' tier' : ''}${n.big ? ' big' : ''}${held ? ' held' : open ? ' open' : edge ? ' edge locked' : ' locked'}" style="--c:${E.col};${rd(n.x, n.y)}" data-act="node" data-node="${n.id}" transform="translate(${n.x} ${n.y})"><circle class="hit" r="${R + 7}"/>`;
     if (shape === 'bead' && n.eff === 'tier') h += `<rect class="ring" x="-7.5" y="-7.5" width="15" height="15" rx="1.5" transform="rotate(45)"/>${held ? '' : '<circle class="pip" r="2.6"/>'}`;      // a skill tier: a diamond, to be found at a glance
@@ -546,7 +558,7 @@ function act(name, b, ev) {
       const id = d.node;
       if (!S.alloc) { ok = false; toast('Prestige to change the tree'); break; }
       if (G.has(id)) { ok = G.unallocate(id); if (ok) AU.play('click'); }       // any node comes back, for its price, unless others hang from it
-      else { ok = G.allocate(id); if (ok) AU.play(D.NODE[id].big ? 'nodeBig' : 'node'); else toast(!G.touches(id) ? 'Not connected' : `${fmt(G.nodeCost(id) - G.cores())} cores short`); }
+      else { ok = G.allocate(id); if (ok) AU.play(D.NODE[id].big ? 'nodeBig' : 'node'); else toast(G.gated(id) ? 'Buy Upgrade and Forge socket first' : !G.touches(id) ? 'Not connected' : `${fmt(G.nodeCost(id) - G.cores())} cores short`); }
       break;
     }
     case 'wipe': modal(`<h3>Start over?</h3><p>This erases <b>everything</b>.</p><div class="btns"><button data-act="close">Keep playing</button><button class="danger" data-act="wipe-yes">Erase my save</button></div>`); break;

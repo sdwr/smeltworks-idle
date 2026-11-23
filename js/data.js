@@ -34,7 +34,7 @@ const U = SW.util = {
 };
 
 const D = SW.data = {};
-D.VERSION = '0.85.0';
+D.VERSION = '0.86.0';
 D.SAVE_KEY = 'smeltworks-idle-v1';
 /* Play data (js/telemetry.js): where it is posted, and the only addresses of the game it is ever sent from */
 D.TELEMETRY = { url: 'https://smeltworks-idle-logging.sdwr.workers.dev/ingest', hosts: ['sdwr.github.io'] };
@@ -253,6 +253,7 @@ D.CULL = 15;                        // Cull (a notable): an enemy at this share 
    taken until both are held. Clearing level 1 with the cursor is the first point, so the first prestige buys the
    weapon; clearing level 2, with that bare weapon's help, is the second, and the next prestige buys the socket. */
 D.TREE_GATE = ['F1'];            // the first node, in the middle: the first weapon. Everything hangs from it
+D.TREE_FIRST = ['UPG', 'F2'];    // and the two beside it, Upgrade and the socket, in either order: nothing else can be bought until both are held
 /* what a node can give. amt: [what a small node of it is worth, a big one]. A notable is worth 1: you hold it or not.
    text: what one node does. sum: what you hold of it altogether (small kinds only). */
 const HUB = '#ff9a4a', SOCK = '#b48cff', WPN = '#e8c060', HEX = '#6ab4ff', FORGE = '#7ad66a', MISC = '#9aa3b5', LIFE = '#e86a6a';
