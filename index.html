@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smeltworks Idle</title>
+<link rel="stylesheet" href="css/game.css">
+</head>
+<body>
+<div id="app">
+  <header id="top">
+    <div class="brand">Smeltworks <i>Idle</i></div>
+    <div class="purse">
+      <div class="cur best" data-tip-text="Deepest level reached"><span>Deepest</span><b id="cur-best">1</b></div>
+    </div>
+    <div class="ctl">
+      <span id="dps-total" class="dim" data-tip-text="Damage per second, last 30s"></span>
+      <button id="btn-sound" class="icon" title="Sound">♪</button>
+      <button id="btn-menu" class="icon" title="Settings">⚙</button>
+    </div>
+  </header>
+
+  <main id="main">
+    <section id="line" class="pane"></section>
+
+    <section id="mid">
+      <div id="fight" class="pane">
+        <div class="fhead">
+          <button id="lv-prev" class="icon" title="Previous level">◀</button>
+          <div class="lv"><b id="lv-n"></b><span id="lv-act"></span></div>
+          <button id="lv-next" class="icon" title="Next level (Shift: the deepest open)">▶</button>
+          <div id="pips"></div>
+          <div class="cur core" data-tip-text="Cores banked"><i></i><b id="cur-cores">0</b></div>
+          <button id="btn-prestige" data-act="prestige-now"></button>
+        </div>
+        <div class="lifebar" data-tip-text="Life. Full at the start of a level; it must last all ten fights.">
+          <div id="life-fill"></div><span id="life-txt"></span>
+        </div>
+        <div id="arena">
+          <canvas id="cv"></canvas>
+          <div class="ehead"><b id="e-name"></b><div id="e-status"></div></div>
+          <div class="hpbar"><div id="hp-fill"></div><span id="hp-txt"></span></div>
+          <div id="banner"></div>
+          <div id="interlude" class="hidden"></div>
+          <div id="toasts"></div>
+        </div>
+      </div>
+    </section>
+
+    <aside id="side" class="pane">
+      <div id="goldbar" class="cur gold" data-tip-text="Gold"><i></i><b id="cur-gold">0</b><span>gold</span></div>
+      <div id="shop"></div>
+      <nav id="tabs">
+        <button data-tab="skills" class="on">Skills<i id="bag-badge"></i></button>
+        <button data-tab="guide">Guide</button>
+      </nav>
+      <div id="tab-skills" class="tab"></div>
+      <div id="tab-guide" class="tab hidden"></div>
+    </aside>
+  </main>
+</div>
+<div id="prestige" class="hidden"><div class="box" id="pres-box"></div></div>
+<div id="tip" class="hidden"></div>
+<div id="modal" class="hidden"></div>
+
+<script src="js/data.js"></script>
+<script src="js/game.js"></script>
+<script src="js/sprites.js"></script>
+<script src="js/sprites2.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/arena.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
