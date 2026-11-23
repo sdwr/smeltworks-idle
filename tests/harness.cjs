@@ -5,7 +5,7 @@ function load(seed, real) {         // real: weapons roll their sockets as in th
   for (const f of ['data', 'game']) vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'js', f + '.js'), 'utf8'), ctx, { filename: f + '.js' });
   if (seed != null) ctx.SW.util.seed(seed);
   ctx.SW.data.FORGE_SECS = 0;                     // weapons are made at once here: the anvil's second and a half is tested by itself
-  ctx.SW.data.SOCK_ROLL0 = ctx.SW.data.SOCK_ROLL; if (!real) ctx.SW.data.SOCK_ROLL = [1, 0, 0];
+  ctx.SW.data.SOCK_ROLL0 = ctx.SW.data.SOCK_ROLL; if (!real) { ctx.SW.data.SOCK_ROLL = [1, 0, 0]; ctx.SW.data.SOCK_STEP.per = 0; }
   ctx.SW.game.init(null);
   return ctx.SW;
 }

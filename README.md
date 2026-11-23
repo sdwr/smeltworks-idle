@@ -71,7 +71,7 @@ It is a separate game from `../smeltworks` and shares nothing with it at run tim
   | Axe, sword, dagger | One target, and about a quarter more damage to it |
 
 - **The Forge**, at the top of the right-hand pane, is an anvil and a bench (it is "the crafter" in what follows, and in the code). **Forge weapon** costs gold and puts a new
-  weapon on the bench: a random type, and a roll of sockets: 30% of the time every socket the tree has unlocked (up to six), 55% one short, 15% two short, never fewer than one. Sockets it missed show as faint outlines. Set skills in its
+  weapon on the bench: a random type, and a roll of sockets: every socket the tree has unlocked 45% of the time with two unlocked, 40% with three and 35% with four or more (up to six); otherwise one short, or 15% of the time two short, never fewer than one. Sockets it missed show as faint outlines. Set skills in its
   sockets; they go in and out freely. With the tree's **Rerolls** node you can reroll its **type** alone or its
   **sockets** alone (their colours, never how many: a weapon that rolled short stays short), for gold, with the same second and a half at the anvil and the same three blows as a new weapon, and the same ring and shine when it is done. Either costs 1.6 times a new weapon (8 kills' gold against 5), since it keeps the half you liked; the whole weapon again is **New** (the same price as Make: a different weapon,
   and the skills in the old one back in your bag). **Equip** is free, needs an empty weapon slot (with none, the button is greyed out, and its tooltip and the toast on a click both say to scrap one weapon first), and is final: the

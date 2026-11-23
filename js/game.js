@@ -222,7 +222,7 @@ G.craftSockets = () => Math.min(D.CRAFT.max, D.CRAFT.sockets0 + G.S.crafter);
 const rollColor = (type, not) => U.wpick(['r', 'b', 'g'].filter(c => c !== not), c => D.WEAPONS[type].col[c]);
 const rollQuality = () => 1;                    // there is no quality roll any more: every weapon of a type is the same
 /* how many sockets a weapon is made with: all the tree has unlocked, or one or two short (D.SOCK_ROLL), never fewer than one */
-const rollSockets = () => { const max = G.craftSockets(), r = U.rng(), R = D.SOCK_ROLL; return max < 1 ? 0 : Math.max(1, max - (r < R[0] ? 0 : r < R[0] + R[1] ? 1 : 2)); };
+const rollSockets = () => { const max = G.craftSockets(), r = U.rng(), R = D.sockRoll(max); return max < 1 ? 0 : Math.max(1, max - (r < R[0] ? 0 : r < R[0] + R[1] ? 1 : 2)); };
 /* a fresh weapon for the bench: a random type, and its roll of sockets */
 G.rollBench = function () {
   const S = G.S, type = U.pick(D.WEAPON_IDS), sockets = [];

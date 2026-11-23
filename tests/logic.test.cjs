@@ -404,12 +404,14 @@ test('posts and sockets are the tree\'s; a made weapon rolls all its sockets, or
   for (const gone of ['buyPost', 'buySocket', 'postCost', 'sockCost']) assert.equal(G[gone], undefined, gone); assert.equal(D.SHOP, undefined);
   assert.equal(D.TREE.filter(n => n.eff === 'post').map(n => n.id).join(), 'F1'); assert.equal(D.TREE.filter(n => n.eff === 'sock').map(n => n.id).join(), 'F2');
   assert.equal(D.TREE.filter(n => n.eff === 'post2').length, 5); assert.equal(D.POSTS_MAX, 6, 'six weapons at the most'); assert.equal(D.TREE.filter(n => n.eff === 'sock2').length, 5);
-  assert.equal(D.SOCK_ROLL.join(), '0.3,0.55,0.15'); near(D.SOCK_ROLL.reduce((x, y) => x + y), 1);
+  assert.equal(D.SOCK_ROLL.join(), '0.45,0.4,0.15'); near(D.SOCK_ROLL.reduce((x, y) => x + y), 1);
   S.best = 200; S.maxLevel = 9; G.prestige(); for (const n of D.TREE) if (/^(post|sock)2?$/.test(n.eff)) S.tree[n.id] = 1; assert.ok(G.beginRun());
   assert.equal(S.posts.length, 6); assert.equal(G.craftSockets(), 6);
   const tally = max => { S.crafter = max; const n = {}; for (let i = 0; i < 4000; i++) { const k = G.rollBench().sockets.length; n[k] = (n[k] || 0) + 1; } return n; };
-  let n = tally(6); assert.equal(Object.keys(n).sort().join(), '4,5,6'); near(n[6] / 4000, 0.30, 0.1); near(n[5] / 4000, 0.55, 0.1); near(n[4] / 4000, 0.15, 0.2);
-  n = tally(2); assert.equal(Object.keys(n).sort().join(), '1,2', 'never fewer than one'); near(n[2] / 4000, 0.30, 0.1);
+  let n = tally(6); assert.equal(Object.keys(n).sort().join(), '4,5,6'); near(n[6] / 4000, 0.35, 0.1); near(n[5] / 4000, 0.50, 0.1);      // (the full count is rarer the more there are: D.SOCK_STEP)
+  assert.deepEqual([2, 3, 4, 5, 6].map(m => +D.sockRoll(m)[0].toFixed(2)), [0.45, 0.4, 0.35, 0.35, 0.35]); for (const m of [1, 2, 3, 4, 6]) near(D.sockRoll(m).reduce((x, y) => x + y), 1);
+  { const n3 = tally(3), n4 = tally(4); near(n3[3] / 4000, 0.40, 0.1); near(n4[4] / 4000, 0.35, 0.1); } near(n[4] / 4000, 0.15, 0.2);
+  n = tally(2); assert.equal(Object.keys(n).sort().join(), '1,2', 'never fewer than one'); near(n[2] / 4000, 0.45, 0.1);
   n = tally(1); assert.equal(Object.keys(n).join(), '1');
   // rerolling the sockets changes their colours and never how many: a weapon that rolled short stays short
   S.crafter = 6; S.tree.URR = 1; S.gold = 1e9; for (const want of [4, 5, 6]) { do { S.bench = G.rollBench(); } while (S.bench.sockets.length !== want);

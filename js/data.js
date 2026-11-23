@@ -34,7 +34,7 @@ const U = SW.util = {
 };
 
 const D = SW.data = {};
-D.VERSION = '0.94.2';
+D.VERSION = '0.94.4';
 D.SAVE_KEY = 'smeltworks-idle-v1';
 /* Play data (js/telemetry.js): where it is posted, and the only addresses of the game it is ever sent from */
 D.TELEMETRY = { url: 'https://smeltworks-idle-logging.sdwr.workers.dev/ingest', hosts: ['sdwr.github.io'] };
@@ -176,7 +176,11 @@ D.PALS = ['rust', 'iron', 'steel', 'rune', 'star', 'void'];   // by socket count
 D.CRAFT = { sockets0: 0, max: 6, part: 1.6 };      // sockets0: what a weapon is made with before any socket node; part: what the type alone, or the sockets alone, costs to reroll, as a multiple of a new weapon: more, since it keeps the half you liked
 /* A made weapon does not always get every socket the tree has unlocked: the chance of all of them, of one short,
    and of two short (never fewer than one). Rerolling its sockets changes their colours, not how many: for more, make it again. */
-D.SOCK_ROLL = [0.30, 0.55, 0.15];
+D.SOCK_ROLL = [0.45, 0.40, 0.15];
+/* and the more sockets there are to get, the less often all of them: the chance of the full count falls by `per` for each socket
+   unlocked past `from`, as far as `to` (45% at two, 40% at three, 35% from four on). What it loses goes to one short. */
+D.SOCK_STEP = { per: 0.05, from: 2, to: 4 };
+D.sockRoll = max => { const R = D.SOCK_ROLL, T = D.SOCK_STEP, cut = T.per * Math.max(0, Math.min(max, T.to) - T.from); return [R[0] - cut, R[1] + cut, R[2]]; };
 /* Upgrading (the tree's Upgrade node): a weapon on the line can be struck at for gold. Each strike adds one to three
    ranks (`gain`), up to `max`, and each rank is `dmg`% more damage. A strike costs `cost` kills' gold at your deepest
    level, times `step` for each rank the weapon already has. Scrapping the weapon gives half of it back. */

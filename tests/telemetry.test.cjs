@@ -8,7 +8,7 @@ function load(host) {
   const ctx = vm.createContext({ console, Math: Object.create(Math), Date, JSON, Promise, setInterval: () => 0 });
   for (const f of ['data', 'game', 'telemetry']) vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'js', f + '.js'), 'utf8'), ctx, { filename: f + '.js' });
   const SW = ctx.SW, T = SW.telemetry, store = {}, posts = [], beacons = [];
-  SW.util.seed(7); SW.data.FORGE_SECS = 0; SW.data.SOCK_ROLL = [1, 0, 0];
+  SW.util.seed(7); SW.data.FORGE_SECS = 0; SW.data.SOCK_ROLL = [1, 0, 0]; SW.data.SOCK_STEP.per = 0;
   T.env = { host: () => host, get: k => (k in store ? store[k] : null), set: (k, v) => { if (v == null) delete store[k]; else store[k] = v; }, post: (url, body) => { posts.push({ url, body }); return T.fail ? false : true; }, beacon: (url, body) => { beacons.push({ url, body }); return true; }, os: () => 'Linux' };
   SW.game.init(null);
   const pump = () => { for (const ev of SW.game.ev) T.onGame(ev); SW.game.ev.length = 0; };
