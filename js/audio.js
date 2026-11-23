@@ -67,6 +67,9 @@ const SND = {
   equip()    { noise({ f: 2600, to: 900, dur: 0.07, vol: 0.12, q: 2 }); tone({ f: 420, to: 300, dur: 0.08, type: 'triangle', vol: 0.1 }); },
   salvage()  { noise({ f: 1500, to: 300, dur: 0.22, vol: 0.14, q: 1.2 }); tone({ f: 220, to: 110, dur: 0.2, type: 'sawtooth', vol: 0.06 }); },
   forge()    { tone({ f: 1480, to: 1400, dur: 0.5, type: 'triangle', vol: 0.16 }); tone({ f: 2220, dur: 0.3, type: 'sine', vol: 0.07 }); noise({ f: 3000, dur: 0.05, vol: 0.2 }); tone({ f: 120, to: 60, dur: 0.15, type: 'sine', vol: 0.25 }); },
+  /* the whole tree opens: a low swell under two rising waves of notes, one for each ripple */
+  unlock()   { tone({ f: 55, to: 82, dur: 2.2, type: 'sine', vol: 0.28 }); noise({ f: 900, dur: 1.4, vol: 0.05, q: 0.6 });
+               [[196, 294, 392, 587], [262, 392, 523, 784, 1047]].forEach((w, k) => w.forEach((f, i) => tone({ f, dur: 0.9, type: 'triangle', vol: 0.09, at: 0.1 + k * 0.62 + i * 0.11 }))); },
   master()   { SND.forge(); [880, 1175, 1760].forEach((f, i) => tone({ f, dur: 0.5, type: 'triangle', vol: 0.1, at: 0.12 + i * 0.07 })); },
   tink()     { tone({ f: 2350, to: 2180, dur: 0.17, type: 'triangle', vol: 0.14 }); tone({ f: 3530, dur: 0.1, type: 'sine', vol: 0.06 }); noise({ f: 5200, dur: 0.03, vol: 0.16, q: 1.4 }); tone({ f: 190, to: 90, dur: 0.06, type: 'sine', vol: 0.12 }); },      // a hammer on the anvil
   // the fight: it goes on all day, so these are short and dull rather than bright, and sit under everything else

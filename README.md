@@ -217,7 +217,7 @@ It is a separate game from `../smeltworks` and shares nothing with it at run tim
   them is held. A locked node's tooltip says "Upgrade and Forge socket first". A save that bought past them when
   it could keeps what it has, and buys the missing one before anything more.
   **The tree is drawn in the same three steps**: the first weapon alone on a black page; then Upgrade and the
-  socket beside it; then, a beat (0.7 s) after both of those are held, all of it, rippling out from the middle as it does
+  socket beside it (each of those with a single ripple); then, a beat (0.7 s) after both of those are held, all of it, with a sound of its own, rippling out twice from the middle as it does
   when the page is opened. (Unspec one of the two and it closes again; a save that holds anything further out
   always sees all of it.)
   The cursor clears level 1 by itself in about half a minute: that is one core, and the first prestige

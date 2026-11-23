@@ -259,21 +259,21 @@ function treeSVG() {
   if (UI.treeStage != null && stage > UI.treeStage && UI.pres) {      // a step opened while the page is up: what is new ripples out
     if (stage === 2 && UI.treeStage === 1) {                          // the whole tree: a beat first, with the two just bought standing lit
       if (UI.treeWait == null) { UI.treeWait = now + TREE_PAUSE; setTimeout(() => { UI.dirty = true; }, TREE_PAUSE * 1000 + 30); }
-      if (now < UI.treeWait) stage = 1; else { UI.treeWait = null; UI.presAt = now; }
+      if (now < UI.treeWait) stage = 1; else { UI.treeWait = null; UI.presAt = now; AU.play('unlock'); }
     } else UI.presAt = now;
   }
   UI.treeStage = stage;
   const shown = id => id === 'start' || stage === 2 || D.TREE_GATE.includes(id) || (stage === 1 && D.TREE_FIRST.includes(id));
   const rt = performance.now() / 1000 - (UI.presAt == null ? -99 : UI.presAt), rip = rt < RIPPLE.spread + RIPPLE.fade + 0.4, ring = RIPPLE.spread * 740 / RIPPLE.reach;      // (a ring is drawn out to 740, at the ripple's own pace)
   const rd = (x, y) => rip ? `animation-delay:${(Math.hypot(x, y) / RIPPLE.reach * RIPPLE.spread - rt).toFixed(2)}s;` : '';
-  let h = `<svg id="tree"${rip ? ' class="ripple"' : ''} viewBox="-615 -372 1230 744" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+  let h = `<svg id="tree"${rip ? ` class="ripple${stage < 2 ? ' one' : ''}"` : ''} viewBox="-615 -372 1230 744" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
     <defs>
       <radialGradient id="gorb" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset=".45" stop-color="#fff" stop-opacity=".08"/><stop offset="1" stop-color="#000" stop-opacity=".28"/></radialGradient>
     </defs>
     <g class="bg">${stage < 2 ? '' : `
       <text class="region" x="-575" y="-318" style="--c:#ff9a4a">ARSENAL</text><text class="region" x="575" y="-318" text-anchor="end" style="--c:#b48cff">WORKSHOP</text>
       <text class="region" x="0" y="-348" text-anchor="middle" style="--c:#5aa8ff">CONTROL</text><text class="region" x="0" y="360" text-anchor="middle" style="--c:#ff5a48">ATTRITION</text>`}
-    </g>${rip ? [0.12, 0.12 + RIPPLE.gap].map(d => `<circle class="ripwave" r="100" style="animation-duration:${ring.toFixed(2)}s;animation-delay:${(d - rt).toFixed(2)}s"/>`).join('') : ''}<g class="links">`;
+    </g>${rip ? (stage < 2 ? [0.12] : [0.12, 0.12 + RIPPLE.gap]).map(d => `<circle class="ripwave" r="100" style="animation-duration:${ring.toFixed(2)}s;animation-delay:${(d - rt).toFixed(2)}s"/>`).join('') : ''}<g class="links">`;
   for (const n of D.TREE) for (const l of n.links) {
     if (!shown(n.id) || !shown(l)) continue;
     const a = at(l), on = G.has(n.id) && G.has(l), next = !on && ((G.has(l) && G.canAllocate(n.id)) || (G.has(n.id) && l !== 'start' && G.canAllocate(l)));

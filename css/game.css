@@ -330,10 +330,13 @@ button.buyskill { display: block; width: 100%; margin: 0 0 8px; padding: 11px 12
 #tree.ripple .node, #tree.ripple .link { animation: ripfade .55s ease-out backwards, ripglow 1.3s ease-in-out backwards; }
 #tree.ripple .region { animation: ripfade 1.6s ease-out .5s backwards; }
 @keyframes ripfade { 0% { opacity: 0; } }
+/* the first weapon alone, and the three: one ripple, one swell. The whole tree has two */
+#tree.ripple.one .node, #tree.ripple.one .link { animation: ripfade .55s ease-out backwards, ripglow1 .7s ease-in-out backwards; }
+@keyframes ripglow1 { 0%, 100% { filter: brightness(1); } 40% { filter: brightness(1.32); } }
 @keyframes ripglow { 0%, 100% { filter: brightness(1); } 20% { filter: brightness(1.32); } 46% { filter: brightness(1); } 68% { filter: brightness(1.2); } }
 #tree .ripwave { fill: none; stroke: #ffd98a; stroke-width: 1.2; vector-effect: non-scaling-stroke; transform-origin: 0 0; pointer-events: none; animation: ripwave 1.7s linear both; }
 @keyframes ripwave { 0% { transform: scale(0); opacity: 0; } 8% { opacity: .32; } 60% { opacity: .16; } 100% { transform: scale(7.4); opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { #tree.ripple .node, #tree.ripple .link, #tree.ripple .region { animation: none; } #tree .ripwave { display: none; } }
+@media (prefers-reduced-motion: reduce) { #tree.ripple .node, #tree.ripple .link, #tree.ripple .region, #tree.ripple.one .node, #tree.ripple.one .link { animation: none; } #tree .ripwave { display: none; } }
 #tree .link { stroke: #2a2534; stroke-width: 3; stroke-linecap: round; }
 #tree .link.next { stroke: var(--c); stroke-opacity: .55; stroke-dasharray: 3 6; }
 #prestige.alloc #tree .link.next { animation: linkflow 1.1s linear infinite; }
