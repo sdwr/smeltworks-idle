@@ -34,6 +34,7 @@ It is a separate game from `../smeltworks` and shares nothing with it at run tim
   boss 62%, and 99% of lost attempts ended on the boss, four in five of those on an act boss.)
   After the last fight of a level there is a short **interlude**, a little over two seconds: the arena dims and
   says the level is cleared, what it paid in cores and what the run has earned so far, and which level is next.
+  It stays whole until its bar is full and only then fades.
 - **Overkill carries.** What a blow has left over when its enemy dies goes on to the nearest enemy still standing,
   and from that one to the next, until it is spent **or the blow has carried as far as its weapon can**: an axe to
   4 more enemies, a hammer 3, a sword or staff 2, a bow, a dagger or the cursor 1. That is one allowance for the
@@ -163,7 +164,11 @@ It is a separate game from `../smeltworks` and shares nothing with it at run tim
   snowflake, a flame, a star, and Brittle's count of stacks).
 - **Opening the prestige page.** The tree ripples out from its centre, twice, slowly and quietly: a faint ring spreads from the first node and each path and node comes up softly as it passes, then a second ring follows and they brighten a little once more (under three seconds in all; not at all for a reader who has asked for reduced motion).
 - **Crafting shows what it did.** An affix put on a skill slides in lit gold and settles; one taken off turns red, is struck through and closes up; rerolled affixes all come in as new.
-- **Losing a fight** puts words across the arena for four and a half seconds (a run's opening words are up for two): "Driven back: Back to level 6" after an ordinary fight, "Overrun: Level 7 restarts" after a boss. It is shown on every loss, not only at the start of a run.
+- **Losing a fight** is ten seconds down (`D.DEATH_SECS`): the arena goes grey under the words ("Driven back: Back to level 6" after an ordinary fight, "Overrun: Level 7 restarts" after a boss) and a count of the seconds left, then the level starts again. The forge and the bag go on working meanwhile, and going to another level does not cut the count short.
+- **A run opens on an empty arena** for four seconds (`D.RUN_SECS`; the words say "First fight in 4s"): time to forge a weapon before the first enemies come.
+- **A run's first weapon always has a socket for a skill already in the bag.** If none of its sockets is a colour the bag holds, one of them becomes one, and it keeps one if its sockets are rerolled. Later weapons are as they roll.
+- **A node's price is always above it** on the tree, whatever its shape.
+- **There is no total dps in the top bar**: each weapon's card has its own.
 - **An enemy's blow can be heard.** It was a faint low hum, lost under a line of weapons and below what small speakers play; it is a dull knock now, and a slam a heavier one.
 - **The left-hand pane.** The cursor's card and the Weapons heading stay where they are; the weapons scroll beneath them in a box of their own, which keeps its place when the pane is drawn again.
 - **Gold is for getting deeper.** A fight pays **double** its gold the first time it is won in a run, and **half** whenever it is won again: a four-fold difference, for every fight, bosses and the rest alike. The run remembers the furthest fight it has won, so going back over cleared levels, or over the first fights of a level that keeps beating you, pays half. A whole level is worth about 39 kills of gold the first time (it was 19) and under 10 when it is fought again.
@@ -313,15 +318,39 @@ Keys: `←` `→` change level, `Shift`+`→` the deepest level,
 | `js/arena.js` | The canvas, top-down: the floor, enemies and their swings, the ring of weapons, blows in flight, the cursor's circle |
 | `js/ui.js` | The panes, tooltips, drag and drop, dialogs |
 | `js/main.js` | Boot and the frame loop |
+| `js/telemetry.js` | Play data: what is sent, to where, and the switch that turns it off |
 | `js/sprites2.js` | Art added for this version: bow, staff, dagger, pointer, five skill glyphs |
 
 The save is one JSON object in local storage under `smeltworks-idle-v1`. Settings (the gear) copies it out as
 text, loads one back in, or wipes it.
 
+## Play data
+
+The copy on GitHub Pages (and no other: not a file opened from disk, not a local server) sends anonymous play
+data to a Cloudflare Worker, `D.TELEMETRY.url`, so that the game can be balanced on how it is actually played.
+**It is announced and it can be switched off**: the first box a new player sees has a ticked "Send anonymous play
+data" line, a player with a save from before sees a one-time notice with the same line, and Settings has it for
+good. Nothing is sent before one of those boxes has been closed, and nothing after it is unticked.
+
+What goes: a random id made for the browser (no name, no account; the worker stores no address), the version, the
+operating system's family, and five kinds of event:
+
+| Event | When | Holds |
+| --- | --- | --- |
+| `session_start` | the page is opened | run number, deepest level, nodes held, play time, whether the save is new |
+| `run_start` | a run begins from the tree | run number, the nodes held, the nodes bought and unspecced on that visit |
+| `run_end` | prestige | how deep and how long the run was, kills, lost fights, cores, weapons and their upgrades and skills, and a count of each thing done: weapons forged, equipped and scrapped, type and socket rerolls, upgrades, each skill craft, skills bought, salvaged and dropped |
+| `progress` | with the two-minute post, when the page is left and before a `run_end`: only if the run has reached a new level since the last one (or has lost fights and ten minutes have passed) | the deepest level as last reported and now, each level reached since with the run's game time when it was, and the fights lost since by level. It is what shows where the runs that never reach a prestige stop |
+| `error` | a script error | its message and where, with addresses cut to file names (five at most) |
+
+Events wait in a small queue in local storage and go together every two minutes and when the page is left. The
+worker and its dashboard are their own project, `smeltworks-idle-logging`.
+
 ## Tests
 
 ```
-node tests/logic.test.cjs      # the rules, 65 checks
+node tests/logic.test.cjs      # the rules, 66 checks
+node tests/telemetry.test.cjs  # play data: the switch, what is sent and when, 7 checks
 node tests/sim.cjs 8           # a bot plays 8 hours, idle and with the cursor striking on cooldown, on 3 seeds
 ```
 

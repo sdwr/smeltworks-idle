@@ -223,6 +223,13 @@ G.rollBench = function () {
   for (let i = 0, n = rollSockets(); i < n; i++) sockets.push({ c: rollColor(type), gem: null });
   return { id: S.uid++, type, q: rollQuality(), sockets, made: true };
 };
+/* A run's first weapon always has a socket for a skill already in the bag: nobody starts on a weapon nothing they
+   hold will go in. If none of its sockets is a colour the bag has, one of them becomes one (by the type's own odds). */
+function fitFirst(B) {
+  const S = G.S, have = ['r', 'b', 'g'].filter(c => S.bag.some(g => G.color(g) === c));
+  if (!B.sockets.length || !have.length || B.sockets.some(s => have.includes(s.c))) return;
+  U.pick(B.sockets).c = U.wpick(have, c => D.WEAPONS[B.type].col[c]);
+}
 /* the bench with nothing on it: until a weapon is made there is nothing to socket, reroll or equip */
 G.blankBench = () => ({ id: G.S.uid++, type: 'sword', q: 1, sockets: [], made: false });
 G.benchMade = () => !!G.S.bench.made;
@@ -269,6 +276,7 @@ function reforged(kind) {
     const was = B.sockets.map(s => s.c).join('');
     for (const s of B.sockets) if (s.gem) { toBag(s.gem); s.gem = null; }
     for (let n = 0; n < 12; n++) { for (const s of B.sockets) s.c = rollColor(B.type); if (B.sockets.map(s => s.c).join('') !== was) break; }      // never the same set again
+    if (S.run.made === 1) fitFirst(B);       // still the run's first weapon: it keeps a socket for something in the bag
   }
   else { B.type = U.pick(D.WEAPON_IDS.filter(t => t !== B.type)); B.q = rollQuality(); }      // always a different type; the sockets and what is in them stay
   G.recompute(); emit('bench', { kind });
@@ -309,6 +317,8 @@ function forged() {
   if (S.forge && S.forge.kind) return reforged(S.forge.kind);      // a reroll of the weapon's type or sockets, not a new weapon
   for (const sk of S.bench.sockets) if (sk.gem) toBag(sk.gem);
   S.forge = null; S.stats.made++; S.bench = G.rollBench();
+  if (!S.run.made) fitFirst(S.bench);             // the run's first weapon
+  S.run.made = (S.run.made || 0) + 1;
   G.recompute(); emit('made');
 }
 G.forging = () => !!G.S.forge;
@@ -372,7 +382,7 @@ G.canAllocate = id => G.S.alloc && G.touches(id) && G.cores() >= G.nodeCost(id);
 G.allocate = function (id) {
   const S = G.S; if (!G.canAllocate(id)) return false;
   const c = G.nodeCost(id); S.bank -= c; S.tree[id] = 1;
-  emit('tree'); return true;
+  emit('tree', { id, on: true }); return true;
 };
 /* Any node can be handed back while the tree is open (between runs), one at a time and for what it costs: one bought
    a moment ago or many runs ago. The one condition is that everything else held still reaches the middle without it,
@@ -383,7 +393,7 @@ G.canRemove = function (id) {
   while (todo.length) for (const y of near(todo.pop())) if (y !== id && y !== 'start' && S.tree[y] && !seen.has(y)) { seen.add(y); todo.push(y); }
   return seen.size === G.spent();          // the start, and every held node but this one
 };
-G.unallocate = function (id) { const S = G.S; if (!G.canRemove(id)) return false; S.bank += G.nodeCost(id); delete S.tree[id]; emit('tree'); return true; };
+G.unallocate = function (id) { const S = G.S; if (!G.canRemove(id)) return false; S.bank += G.nodeCost(id); delete S.tree[id]; emit('tree', { id, on: false }); return true; };
 /* how many levels a run begins with already open: the Head start, as far as the deepest level ever cleared */
 G.headLevels = () => Math.min(G.treeVal('head'), G.S.best - 1);
 /* a run's beginning: level 1, nothing in hand but what the tree gives */
@@ -411,12 +421,15 @@ G.canPrestige = () => !G.S.alloc && (G.S.runs > 0 || G.S.maxLevel >= D.PRESTIGE_
    G.beginRun. */
 G.prestige = function () {
   const S = G.S; if (!G.canPrestige()) return false;
+  // what the run was, for whoever is listening (the play data), before it is cleared away
+  const was = { level: S.maxLevel, secs: Math.round(S.run.time || 0), kills: S.run.kills || 0, fails: S.run.fails || 0, first: S.maxLevel > S.best,
+    weapons: S.posts.filter(P => P.unit).length, ups: S.posts.reduce((n, P) => n + (P.unit && P.unit.up || 0), 0), skills: S.posts.reduce((n, P) => n + (P.unit ? P.unit.sockets.filter(s => s.gem).length : 0), 0) };
   S.best = Math.max(S.best, S.maxLevel); S.runs++; S.alloc = true;
   const earned = G.runCores(); S.bank = G.cores() + earned; S.run.earn = 0;      // the run's cores are banked, and the tree opens
   S.gold = 0; S.gps = 0; S.level = 1; S.maxLevel = 1; S.fight = 0; S.bag = []; S.forge = null; for (const P of S.posts) P.unit = null;
   S.bench = G.blankBench(); S.spare = null;
   G.F = freshFight(); G.recompute(); G.spawn();
-  emit('prestige', { earned, cores: G.cores() });
+  emit('prestige', { earned, cores: G.cores(), was });
   return true;
 };
 /* the tree is settled: build the line it gives and begin. Unspent points are kept for next time. */
@@ -426,8 +439,9 @@ G.beginRun = function () {
   S.posts = []; for (let i = 0, n = Math.min(D.POSTS_MAX, D.POSTS0 + G.treeVal('post') + G.treeVal('post2')); i < n; i++) S.posts.push({ unit: null });
   S.crafter = Math.min(D.CRAFT.max - D.CRAFT.sockets0, G.treeVal('sock') + G.treeVal('sock2'));
   newRun();
-  G.F = freshFight(); G.recompute(); G.spawn();
-  emit('run');
+  G.F = freshFight(); G.recompute();
+  if (D.RUN_SECS > 0) { G.F.wait = D.RUN_SECS; G.F.life = G.X.lifeMax; } else G.spawn();      // a moment at the forge before the first enemies come
+  emit('run', { secs: D.RUN_SECS });
   return true;
 };
 
@@ -586,7 +600,7 @@ G.spawn = function () {
   // Life lasts the level: it is full at a level's first fight (so after a loss too, which always starts one), and
   // what is left of it carries from fight to fight after that
   if (S.fight === 0 || F.life == null) F.life = X.lifeMax; else F.life = Math.min(F.life, X.lifeMax);
-  F.wait = 0;
+  F.wait = 0; F.dead = false;
   emit('spawn');
 };
 
@@ -789,12 +803,12 @@ function won() {
    is too much, so you fall back one, and climb again from there. */
 function fail() {
   const S = G.S, F = G.F, enc = F.enc;
-  enc.lost = true; S.stats.fails++;
+  enc.lost = true; S.stats.fails++; S.run.fails = (S.run.fails || 0) + 1;
   let back = false;
   if (!enc.boss && S.level > 1) { S.level--; back = true; }
   S.fight = 0;
-  F.wait = 1.4;
-  emit('fail', { boss: enc.boss, back });
+  F.wait = D.DEATH_SECS; F.dead = true;      // down for the count: nothing fights until it is over (the forge and the bag still work)
+  emit('fail', { boss: enc.boss, back, secs: D.DEATH_SECS });
 }
 G.update = function (dt) {
   const S = G.S, F = G.F, X = G.X;
@@ -868,13 +882,15 @@ G.click = function (x, y) {
 };
 /* where a held button is pointing */
 G.aim = function (x, y) { G.F.ax = x; G.F.ay = y; };
+/* seconds left of the count after a lost fight, or 0 */
+G.deadLeft = () => (G.F.dead && G.F.wait > 0 ? G.F.wait : 0);
 G.setHold = function (on) { G.F.hold = !!on; };
 /* how far through its cooldown the cursor is: 1 is ready */
 G.ready = () => 1 - U.clamp(G.F.cdC / G.X.cooldown, 0, 1);
 G.goto = function (lvl) {
   const S = G.S; lvl = U.clamp(lvl | 0, 1, S.maxLevel);
   if (lvl === S.level) return false;
-  S.level = lvl; S.fight = 0; G.F.wait = 0.25; G.F.es = [];
+  S.level = lvl; S.fight = 0; G.F.wait = G.F.dead ? Math.max(G.F.wait, 0.25) : 0.25; G.F.es = [];      // (going to another level does not cut the count short)
   emit('goto');
   return true;
 };
@@ -907,6 +923,7 @@ G.patch = function (S) {
   // a run from before levels were paid for by the highest one cleared: it has been paid up to where it stands, unless a Head start's levels were still owing
   if (S.run.paid == null) S.run.paid = S.run.skip ? 0 : Math.max(0, (S.maxLevel || 1) - 1);
   // and from before a fight paid less the second time: the run has won every fight up to where it stands
+  if (S.run.made == null) S.run.made = S.posts.some(P => P.unit) ? 2 : S.bench && S.bench.made ? 1 : 0;      // weapons made this run, as near as an older save can say
   if (S.run.far == null) S.run.far = Math.max(S.run.paid * D.FIGHTS - 1, S.level === S.maxLevel ? (S.level - 1) * D.FIGHTS + (S.fight || 0) - 1 : -1);
   delete S.run.skip;
   // a save from before the first two nodes: it has a line and skills already, so it holds them. The first socket

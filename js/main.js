@@ -9,7 +9,8 @@ function advance(dt, draw) {
   while (left > 1e-6 && guard++ < 4000) {
     const s = Math.min(0.05, left); left -= s;
     G.update(s);
-    if (G.ev.length) { if (draw) for (const ev of G.ev) UI.onEvent(ev); else if (G.ev.some(ev => ev.t !== 'hit' && ev.t !== 'hurt')) UI.dirty = true; G.ev.length = 0; }
+    if (G.ev.length) { for (const ev of G.ev) SW.telemetry.onGame(ev);      // the play data hears everything, drawn or not
+      if (draw) for (const ev of G.ev) UI.onEvent(ev); else if (G.ev.some(ev => ev.t !== 'hit' && ev.t !== 'hurt')) UI.dirty = true; G.ev.length = 0; }
   }
 }
 
@@ -20,7 +21,8 @@ function boot() {
   AR.init(document.getElementById('cv'));
   UI.bind();
   UI.render();
-  if (!saved) UI.welcome(); else if (away) UI.offline(away);
+  SW.telemetry.init();
+  if (!saved) UI.welcome(); else if (away) UI.offline(away); else UI.playDataNotice();      // (each of them carries the play-data switch, until it has been seen)
   const ico = document.createElement('link'); ico.rel = 'icon'; ico.href = SW.sprites.url('hammer', 'ember', 2); document.head.appendChild(ico);
 
   let last = performance.now(), saveT = 0, hiddenAt = 0;

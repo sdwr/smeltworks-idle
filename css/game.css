@@ -197,16 +197,25 @@ button.x { padding: 5px 7px; color: var(--dim); flex: none; }
 #hp-txt { position: absolute; inset: 0; display: grid; place-items: center; font: 700 11px var(--sans); color: #fff; text-shadow: 0 1px 2px #000; font-variant-numeric: tabular-nums; }
 #banner { position: absolute; left: 0; right: 0; top: 38%; text-align: center; pointer-events: none; }
 /* the interlude after a level: it covers the arena for the pause, then the next level begins */
-#interlude { position: absolute; inset: 0; display: grid; place-items: center; background: radial-gradient(ellipse at center, rgba(10,8,14,.92), rgba(10,8,14,.72)); pointer-events: none; z-index: 4; animation: ifade var(--secs, 2.2s) both; }
+#interlude { position: absolute; inset: 0; display: grid; place-items: center; background: radial-gradient(ellipse at center, rgba(10,8,14,.92), rgba(10,8,14,.72)); pointer-events: none; z-index: 4; animation: iin .25s both; }      /* it stays whole until its bar is full, and only then goes */
+#interlude.out { animation: iout .4s both; }
 #interlude.hidden { display: none; }
-.ibox { display: grid; justify-items: center; gap: 6px; animation: ifade var(--secs) both; }
+.ibox { display: grid; justify-items: center; gap: 6px; }
 .ibox small { font: 600 13px var(--sans); letter-spacing: 3px; text-transform: uppercase; color: var(--dim); }
 .ibox b { font: 700 40px var(--serif); color: var(--hot); text-shadow: 0 0 24px rgba(255,180,80,.45); line-height: 1; }
 .ibox .ipay { font: 700 20px var(--sans); color: #e6d6ff; margin-top: 6px; } .ibox .ipay .ci { width: 13px; height: 13px; margin-right: 7px; } .ibox .ipay i { font: 400 13px var(--sans); color: var(--dim); margin-left: 10px; font-style: normal; }
 .ibox .inext { font: 15px var(--serif); color: var(--text); margin-top: 10px; }
 .ibox .ibar { width: 180px; height: 3px; background: #2a2433; border-radius: 2px; overflow: hidden; margin-top: 4px; } .ibox .ibar i { display: block; height: 100%; background: var(--hot); transform-origin: left; animation: idrain var(--secs) linear both; }
-@keyframes ifade { 0% { opacity: 0; } 9%, 86% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes iin { from { opacity: 0; } to { opacity: 1; } }
+@keyframes iout { from { opacity: 1; } to { opacity: 0; } }
 @keyframes idrain { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+/* a lost fight: the arena goes grey under a count, until the level starts again */
+#dead { position: absolute; inset: 0; display: grid; place-items: center; z-index: 4; pointer-events: none; background: rgba(22,22,26,.5); -webkit-backdrop-filter: grayscale(1) brightness(.6); backdrop-filter: grayscale(1) brightness(.6); animation: deadin .5s both; }
+.dbox { display: grid; justify-items: center; gap: 4px; }
+.dbox b { font: 700 26px var(--serif); color: #d9d6d2; }
+.dbox small { font: 14px var(--sans); color: #a9a6a2; }
+.dbox span { font: 700 54px var(--serif); color: #f1eeea; line-height: 1.1; margin-top: 6px; font-variant-numeric: tabular-nums; text-shadow: 0 2px 14px rgba(0,0,0,.6); }
+@keyframes deadin { from { opacity: 0; } to { opacity: 1; } }
 #banner div { display: inline-block; padding: 8px 26px; font: 700 24px var(--serif); background: rgba(8,7,11,.85); border-block: 1px solid currentColor; animation: banner 2.2s both; }
 #banner div small { display: block; font: 14px var(--sans); color: var(--text); margin-top: 2px; }
 @keyframes banner { 0% { opacity: 0; transform: scale(.8); } 10%, 75% { opacity: 1; transform: none; } 100% { opacity: 0; } }
@@ -361,6 +370,10 @@ button.buyskill { display: block; width: 100%; margin: 0 0 8px; padding: 11px 12
 #modal .box { width: min(520px, 92vw); background: var(--panel); border: 1px solid var(--line2); border-radius: 6px; padding: 18px 20px; box-shadow: 0 20px 60px rgba(0,0,0,.8); }
 #modal h3 { margin: 0 0 8px; font: 700 20px var(--serif); color: var(--hot); }
 #modal p { color: var(--dim); line-height: 1.5; margin: 6px 0; } #modal p b { color: var(--text); }
+/* the play-data switch, in the welcome box, its own notice, and Settings */
+#modal .teleopt { display: flex; gap: 10px; align-items: flex-start; margin: 14px 0 4px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 5px; background: var(--panel2); cursor: pointer; }
+#modal .teleopt input { margin-top: 3px; width: 16px; height: 16px; accent-color: var(--ember); flex: none; }
+#modal .teleopt b { display: block; color: var(--text); font-weight: 600; } #modal .teleopt small { display: block; margin-top: 3px; color: var(--dim); font-size: 12px; line-height: 1.45; }
 #modal .btns { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; flex-wrap: wrap; }
 #modal textarea { width: 100%; height: 90px; background: #0f0d14; color: var(--text); border: 1px solid var(--line2); border-radius: 3px; font: 11px monospace; padding: 6px; resize: vertical; user-select: text; -webkit-user-select: text; }
 

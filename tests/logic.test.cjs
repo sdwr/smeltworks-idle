@@ -471,7 +471,7 @@ test('nothing takes Life but enemy attacks, and nothing soaks them; Chill slows 
   assert.equal(F.barrier, undefined, 'there is no Barrier'); assert.equal(G.X.bulwark, undefined); assert.equal(G.X.mend, undefined); void e;
 });
 test('Life lasts the level: full at its first fight and carried from fight to fight; more of it is on the tree, not in weapons', () => {
-  const SW = rich(), G = SW.game, S = G.S, D = SW.data;
+  const SW = rich(), G = SW.game, S = G.S, D = SW.data; D.DEATH_SECS = 1.4;
   assert.equal(D.LIFE, 100); assert.equal(D.LIFE_POST, undefined); assert.equal(G.X.lifeMax, 100, 'a weapon brings no Life of its own'); S.tree.ULF = 1; G.recompute(); assert.equal(D.NODE.ULF.eff, 'life'); assert.equal(G.X.lifeMax, 200, 'the Life node, north of the middle, is a hundred more'); assert.equal(D.NODE.ULF.y, -170); assert.equal(D.NODE.ULF.links.join(), 'n2'); assert.equal(D.NODE.N0.links.join(), 'UPG,F2'); assert.equal(D.NODE.n1.links.join(), 'N0'); assert.equal(['N0', 'n1', 'n2'].map(id => D.NODE[id].eff).join(), 'dmg,dmg,dmg', 'by way of weapon damage');
   S.run.kills = 0; S.fight = 0; G.F.life = 3; G.spawn(); assert.equal(G.F.life, 200, 'a level\'s first fight');
   assert.equal(G.F.es.length, 1, 'the first fight of a new game is one monster');
@@ -528,11 +528,15 @@ test('Life affixes add Life, up to the cap', () => {
   assert.equal(SW.data.AFFIX.time.per, 20); assert.equal(G.X.lifeMax, 300, 'affixes add two hundred at most'); for (const n of SW.data.TREE) if (n.eff === 'life') G.S.tree[n.id] = 1; G.recompute(); assert.equal(G.X.lifeMax, 600, 'and the tree\'s three hundred are on top of that');
 });
 test('running out of Life on a boss restarts the level; on a monster it drops you back a level, to climb again', () => {
-  const SW = load(3), G = SW.game, S = G.S;
+  const SW = load(3), G = SW.game, S = G.S, D = SW.data;
   S.level = 4; S.maxLevel = 6; S.fight = 9; G.spawn(); assert.ok(G.F.enc.boss);
-  G.F.life = 0.01; G.F.es[0].atkT = 0.01; G.update(0.05);
+  G.F.life = 0.01; G.F.es[0].atkT = 0.01; G.ev.length = 0; G.update(0.05);
   assert.equal(S.level, 4); assert.equal(S.fight, 0); assert.equal(S.auto, true);
-  G.update(2); assert.ok(!G.F.enc.boss);
+  // down for the count: ten seconds in which nothing fights, and going to another level does not cut it short
+  assert.equal(D.DEATH_SECS, 10); assert.equal(G.ev.find(e => e.t === 'fail').secs, 10); near(G.deadLeft(), 10, 1e-9);
+  G.update(6); near(G.deadLeft(), 4, 1e-9); assert.ok(G.F.enc.lost); assert.equal(G.click(0, 0), false);
+  assert.ok(G.goto(2)); near(G.deadLeft(), 4, 1e-9); assert.ok(G.goto(4));
+  G.update(3.9); assert.ok(G.deadLeft() > 0); G.update(0.2); assert.equal(G.deadLeft(), 0); assert.ok(!G.F.enc.boss && !G.F.enc.lost && G.alive().length > 0, 'and the level starts again');
   G.F.life = 0.01; G.F.es[0].atkT = 0.01; G.update(0.05);
   assert.equal(S.level, 3); assert.equal(S.auto, true, 'a cleared level still leads on to the next'); assert.equal(S.maxLevel, 6);
   // an old save that had Auto-advance switched off: there is no switch any more
@@ -578,7 +582,8 @@ test('prestige ends the run and opens the tree; nothing moves until the next run
   // the run begins: the line the tree gives, and the tree is fixed
   for (const id of ['P1', 'UHX']) assert.ok(G.allocate(id));
   assert.equal(S.posts.length, 2, 'not until the run begins'); assert.ok(G.beginRun()); assert.equal(S.alloc, false); assert.equal(G.beginRun(), false);
-  assert.equal(S.posts.length, 2, 'the two posts the tree holds'); assert.equal(G.F.es.length, 1, 'a new run opens on one monster'); assert.equal(G.X.units.filter(Boolean).length, 0);
+  assert.equal(S.posts.length, 2, 'the two posts the tree holds'); assert.equal(G.F.es.length, 0, 'a new run opens on an empty arena: a moment to forge'); assert.equal(D.RUN_SECS, 4); assert.equal(G.F.life, G.X.lifeMax);
+  G.update(3.9); assert.equal(G.F.es.length, 0); G.update(0.2); assert.equal(G.F.es.length, 1, 'then one monster'); assert.equal(G.X.units.filter(Boolean).length, 0);
   assert.equal(G.allocate('s1'), false); assert.equal(G.unallocate('UHX'), false); assert.equal(G.spent(), 6); assert.equal(G.cores(), 40 - 13 - 4, 'cores not spent are kept');
   const t2 = S.stats.time; G.update(1); assert.ok(S.stats.time > t2, 'and time moves again');
   // the first fights of every run drop a skill
@@ -1168,5 +1173,24 @@ test('two affixes most weapons can do without: Cursor damage is for the cursor a
   while (S.posts.length < 6) S.posts.push({ unit: null });
   for (let i = 0; i < 3; i++) { S.bench = bench(SW, 'axe', 'rb'); const x = gem(SW, 'pr', 25, [{ k: 'leech', t: 5 }]), y = gem(SW, 'pb', 25, [{ k: 'leech', t: 5 }]); G.socket(x.id, G.BENCH, 0); G.socket(y.id, G.BENCH, 1); assert.ok(G.equip()); }
   assert.equal(G.X.glob.leech, 14); assert.equal(G.X.leech, 5, 'capped');
+});
+
+test('a run\'s first weapon always has a socket for a skill already in the bag, and keeps one when its sockets are rerolled', () => {
+  let forced = 0;
+  for (let seed = 1; seed <= 80; seed++) {
+    const SW = begun(seed), G = SW.game, S = G.S, D = SW.data, col = 'rbg'[seed % 3];
+    S.tree.URR = 1; S.crafter = 1 + seed % 2; G.recompute(); S.bench = G.blankBench(); S.bag.length = 0; gem(SW, 'p' + col, 1, []); S.run.made = 0; S.gold = 1e12;
+    assert.ok(G.make(), 'seed ' + seed); G.update(D.FORGE_SECS + 0.1);
+    assert.ok(S.bench.made && S.bench.sockets.length >= 1); assert.equal(S.run.made, 1);
+    assert.ok(S.bench.sockets.some(k => k.c === col), 'seed ' + seed + ': ' + S.bench.sockets.map(k => k.c).join('') + ' has no ' + col);
+    assert.ok(G.benchReroll('socks'), 'seed ' + seed + ': reroll'); G.update(D.FORGE_SECS + 0.1);
+    assert.ok(S.bench.sockets.some(k => k.c === col), 'seed ' + seed + ': rerolled to ' + S.bench.sockets.map(k => k.c).join(''));
+    // the second weapon of the run is as it rolls
+    assert.ok(G.equip()); S.posts.push({ unit: null }); assert.ok(G.make()); G.update(D.FORGE_SECS + 0.1); assert.equal(S.run.made, 2);
+    if (!S.bench.sockets.some(k => k.c === col)) forced++;
+  }
+  assert.ok(forced > 5, 'later weapons are not held to it (' + forced + ')');
+  // an empty bag asks nothing of it
+  const SW = begun(3), G = SW.game, S = G.S; S.bench = G.blankBench(); S.bag.length = 0; S.run.made = 0; S.gold = 1e12; assert.ok(G.make()); G.update(SW.data.FORGE_SECS + 0.1); assert.ok(S.bench.made);
 });
 console.log(process.exitCode ? 'some tests failed' : `${n} tests passed`);

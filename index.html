@@ -14,7 +14,6 @@
       <div class="cur best" data-tip-text="Deepest level reached"><span>Deepest</span><b id="cur-best">1</b></div>
     </div>
     <div class="ctl">
-      <span id="dps-total" class="dim" data-tip-text="Damage per second, last 30s"></span>
       <button id="btn-sound" class="icon" title="Sound">♪</button>
       <button id="btn-menu" class="icon" title="Settings">⚙</button>
     </div>
@@ -42,6 +41,7 @@
           <div class="hpbar"><div id="hp-fill"></div><span id="hp-txt"></span></div>
           <div id="banner"></div>
           <div id="interlude" class="hidden"></div>
+          <div id="dead" class="hidden"><div class="dbox"><b id="dead-title"></b><small id="dead-sub"></small><span id="dead-n"></span></div></div>
           <div id="toasts"></div>
         </div>
       </div>
@@ -60,6 +60,7 @@
 
 <script src="js/data.js"></script>
 <script src="js/game.js"></script>
+<script src="js/telemetry.js"></script>
 <script src="js/sprites.js"></script>
 <script src="js/sprites2.js"></script>
 <script src="js/audio.js"></script>

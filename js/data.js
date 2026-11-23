@@ -34,8 +34,10 @@ const U = SW.util = {
 };
 
 const D = SW.data = {};
-D.VERSION = '0.83.0';
+D.VERSION = '0.85.0';
 D.SAVE_KEY = 'smeltworks-idle-v1';
+/* Play data (js/telemetry.js): where it is posted, and the only addresses of the game it is ever sent from */
+D.TELEMETRY = { url: 'https://smeltworks-idle-logging.sdwr.workers.dev/ingest', hosts: ['sdwr.github.io'] };
 
 /* ------------------------------------------------------------ the pace
    A level is ten fights: nine encounters and a boss. Monster life does not grow by a fixed ratio per level: skills
@@ -91,6 +93,8 @@ D.LIFE = 100; D.LIFE_CAP = 300;     // the Life you begin with. More is on the p
                                     // add LIFE_CAP - LIFE at the very most. A weapon brings none of its own.
 D.HIT0 = 18;                         // Life a level 1 attack takes (before D.PACE), times the monster's own `hit`
 D.HIT_G = 0.0075; D.HIT_CAP = 2;    // attacks hit 0.75% harder per level, up to twice as hard
+D.DEATH_SECS = 10;                  // after a fight is lost: the arena goes grey and counts down before the level starts again
+D.RUN_SECS = 4;                     // a run opens on an empty arena for this long: time to forge a weapon before the first fight
 D.SPAWN = 0.7;                      // the pause between one fight and the next
 D.LEVEL_PAUSE = 2.2;                // and after the last fight of a level: an interlude that says what the level paid and what comes next
 

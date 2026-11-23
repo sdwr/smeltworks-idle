@@ -90,13 +90,10 @@ function readDps(force) {
   const now = performance.now() / 1000; if (!force && now - dpsAt < DPS_EVERY) return;
   dpsAt = now;
   shownDps[-1] = fmt1(G.actual(-1)); G.S.posts.forEach((P, p) => { shownDps[p] = fmt1(P.unit ? G.actual(p) : 0); });
-  const tot = G.actualTotal(); shownDps.all = tot ? fmt1(tot) + ' dps' : '';
   for (const el of document.querySelectorAll('[data-dps]')) setText(el, shownDps[el.dataset.dps] || '0');
-  setText($('dps-total'), shownDps.all);
 }
 
 /* ------------------------------------------------------------------ the line (left) */
-const FAIL_SECS = 4.5;                          // how long the words stay up after a fight is lost (a run's opening words: 2.2)
 const UP_SECS = 0.9;                            // and how long a weapon's whole card flashes when it is upgraded
 const NEW_SECS = 3.2;                           // how long a newly made weapon's card and post glow
 function renderLine() {
@@ -145,7 +142,7 @@ function renderBench() {
   // sockets the tree has unlocked that this weapon did not roll: faint outlines after its own
   const lost = B.made ? '<div class="sock ghost" data-tip-text="Not rolled"></div>'.repeat(Math.max(0, n - B.sockets.length)) : '';
   const forge = `<div class="forgebar"><i data-forge></i><span>Forging</span></div>`;
-  const make = cls => `<button class="${cls}" data-act="make" data-cost="${cost}" data-cur="gold" data-tip-text="${B.made ? 'A new weapon: type and sockets' : ''}">${B.made ? 'New' : 'Forge weapon'} · ${ci('gold')}${fmt(cost)}</button>`;
+  const make = cls => `<button class="${cls}" data-act="make" data-cost="${cost}" data-cur="gold" data-tip-text="${B.made ? 'Forge a new weapon' : ''}">${B.made ? 'New' : 'Forge weapon'} · ${ci('gold')}${fmt(cost)}</button>`;
   // nothing on the bench: the anvil, and Make
   if (!B.made) { $('shop').innerHTML = head + `<div class="bench blank${S.forge ? ' forging' : ''}"><div class="pic"><span class="anvil"></span></div><div class="what"><span class="dim">${S.forge ? '' : 'No weapon'}</span></div>${S.forge ? forge : make('big')}</div>`; return; }
   $('shop').innerHTML = head + `
@@ -276,7 +273,7 @@ function treeSVG() {
       // a big node is known by its icon: its name is in the tooltip
       h += `<path class="ico" transform="${shape === 'hub' ? 'scale(1.3) ' : ''}translate(-12 -12)" d="${D.TREE_ICON[n.eff]}"/>`;
     }
-    if (edge) h += `<text class="price" y="${shape === 'bead' ? -R - 5 : R + 13}">${fmt(G.nodeCost(n.id))}</text>`;      // what the next steps cost
+    if (edge) h += `<text class="price" y="${-R - 5}">${fmt(G.nodeCost(n.id))}</text>`;      // what the next steps cost: always above the node
     h += '</g>';
   }
   return h + '</svg>';
@@ -379,7 +376,14 @@ function patch(force) {
   if (S.alloc && !UI.pres) showPrestige(true);     // between runs the tree is all there is
   readDps(false);
 }
-UI.frame = function () { patch(false); };
+/* the count after a lost fight: grey over the arena, the seconds left in the middle */
+let deadN = -1;
+function deadTick() {
+  const left = G.S.alloc ? 0 : G.deadLeft(), n = left > 0 ? Math.ceil(left) : 0;
+  if (n === deadN) return; deadN = n;
+  $('dead').classList.toggle('hidden', !n); if (n) $('dead-n').textContent = n;
+}
+UI.frame = function () { patch(false); deadTick(); };
 
 /* ------------------------------------------------------------------ toasts, banners, tips, dialogs */
 function toast(html) {
@@ -394,7 +398,8 @@ function interlude(ev) {
   el.innerHTML = `<div class="ibox" style="--secs:${ev.secs}s"><small>Level ${ev.level}</small><b>Cleared</b>
     ${ev.pay ? `<span class="ipay">${ci('core')}+${fmt(ev.pay)}<i>${fmt(G.runCores())} this run</i></span>` : ''}
     <span class="inext">${on ? `Level ${ev.next} · ${esc(D.act(ev.next).name)}` : 'Again'}</span><div class="ibar"><i></i></div></div>`;
-  el.classList.remove('hidden'); clearTimeout(interlude.t); interlude.t = setTimeout(() => el.classList.add('hidden'), ev.secs * 1000);
+  el.classList.remove('hidden', 'out'); clearTimeout(interlude.t);
+  interlude.t = setTimeout(() => { el.classList.add('out'); interlude.t = setTimeout(() => el.classList.add('hidden'), 400); }, ev.secs * 1000);      // the bar fills, then it fades
 }
 /* the words across the arena: a run beginning, or a fight lost. `secs` is how long they are up (a loss stays longer: it has something to tell you) */
 function banner(title, sub, color, secs) { $('banner').innerHTML = `<div style="color:${color}${secs ? `;animation-duration:${secs}s` : ''}">${title}<small>${sub}</small></div>`; }
@@ -429,24 +434,37 @@ function tipFor(el, ev) {
    its row slides under it): the tooltip follows what is there now */
 function retip() { if (!mouse) return hideTip(); tipFor(document.elementFromPoint(mouse.clientX, mouse.clientY), mouse); }
 function modal(html) { const m = $('modal'); m.innerHTML = `<div class="box">${html}</div>`; m.classList.remove('hidden'); }
-function closeModal() { $('modal').classList.add('hidden'); }
+/* closing a box that carries the play-data switch settles it: as it stands, on or off (and from then on it has been seen) */
+function closeModal() { const c = $('tele-on'); if (c && !$('modal').classList.contains('hidden')) SW.telemetry.setEnabled(c.checked); $('modal').classList.add('hidden'); }
+/* The play-data switch. Only on the hosted game; it starts on, and nothing is sent until a box with it in has been closed. */
+function playDataLine() {
+  const T = SW.telemetry; if (!T.hosted()) return '';
+  return `<label class="teleopt"><input type="checkbox" id="tele-on" ${T.wanted() ? 'checked' : ''}><span><b>Send anonymous play data</b><small>How long runs last, how deep they go, which nodes you buy, what you forge, scrap, reroll and craft, and errors. No name, no address, nothing you type: only a random id for this browser. Change it in Settings (⚙).</small></span></label>`;
+}
+/* for a save from before there was any: the switch, once, in a box of its own */
+UI.playDataNotice = function () {
+  const T = SW.telemetry; if (!T.hosted() || T.asked() || !$('modal').classList.contains('hidden')) return;
+  modal(`<h3>One new thing</h3><p>This test build can send anonymous notes on how your runs go, to help balance the game.</p>${playDataLine()}
+    <div class="btns"><button class="big" data-act="close">Continue</button></div>`);
+};
 function showPrestige(on) { if (!on && G.S.alloc) return; if (on && !UI.pres) UI.presAt = performance.now() / 1000; UI.pres = !!on; $('prestige').classList.toggle('hidden', !on); if (on) renderCores(); hideTip(); }
 UI.welcome = function () {
   modal(`<h3>Smeltworks Idle</h3>
     <p><b>Click enemies</b> to strike them. Hold to keep striking.</p>
     <p>Their attacks drain <b>Life</b>, which must last the whole level.</p>
-    <p>Every level you clear pays <b>cores</b>. Prestige to bank and spend them.</p>
+    <p>Every level you clear pays <b>cores</b>. Prestige to bank and spend them.</p>${playDataLine()}
     <div class="btns"><button class="big" data-act="close">Begin</button></div>`);
 };
 UI.offline = function (o) {
   const h = Math.floor(o.secs / 3600), m = Math.floor(o.secs % 3600 / 60);
-  modal(`<h3>While you were away</h3><p><b>${h ? h + 'h ' : ''}${m}m</b> · <b class="hot">${fmt(o.gold)} gold</b></p>
+  modal(`<h3>While you were away</h3><p><b>${h ? h + 'h ' : ''}${m}m</b> · <b class="hot">${fmt(o.gold)} gold</b></p>${SW.telemetry.asked() ? '' : playDataLine()}
     <div class="btns"><button class="big" data-act="close">Continue</button></div>`);
 };
 function settings() {
   modal(`<h3>Settings</h3>
     <p>Saved in this browser. Copy the text to move it.</p>
     <textarea id="save-text" spellcheck="false" placeholder="Paste a save here, then Load"></textarea>
+    ${playDataLine()}
     <div class="btns"><button data-act="export">Copy save</button><button data-act="import">Load save</button><button class="danger" data-act="wipe">Start over</button><button class="big" data-act="close">Done</button></div>`);
 }
 
@@ -477,9 +495,9 @@ UI.onEvent = function (ev) {
     case 'bagfull': toast(`<b class="t-${D.SKILL[ev.sk].c}">${D.SKILL[ev.sk].name}</b> row full: salvaged ${ci('gold')}${fmt(ev.gold)}`); break;
     case 'leveldone': interlude(ev); AU.play('level'); break;
     case 'prestige': AU.play('master'); $('interlude').classList.add('hidden'); UI.sel = null; UI.fresh.clear(); UI.glows = {}; for (const el of document.querySelectorAll('.newglow')) el.classList.remove('newglow'); showPrestige(true); break;
-    case 'run': UI.pres = false; $('prestige').classList.add('hidden'); banner('Run ' + (G.S.runs + 1), '', 'var(--hot)'); AU.play('level'); UI.dirty = true; UI.render(); flashNew(); break;
+    case 'run': UI.pres = false; $('prestige').classList.add('hidden'); banner('Run ' + (G.S.runs + 1), ev.secs ? 'First fight in ' + ev.secs + 's' : '', 'var(--hot)', ev.secs || 0); AU.play('level'); UI.dirty = true; UI.render(); flashNew(); break;
     case 'goto': $('interlude').classList.add('hidden'); break;
-    case 'fail': banner(ev.boss ? 'Overrun' : 'Driven back', ev.back ? 'Back to level ' + G.S.level : 'Level ' + G.S.level + ' restarts', 'var(--bad)', FAIL_SECS); AU.play('death'); break;
+    case 'fail': $('banner').innerHTML = ''; $('dead-title').textContent = ev.boss ? 'Overrun' : 'Driven back'; $('dead-sub').textContent = ev.back ? 'Back to level ' + G.S.level : 'Level ' + G.S.level + ' restarts'; deadTick(); AU.play('death'); break;
   }
   AR.onEvent(ev);
 };
