@@ -243,15 +243,26 @@ function nodeTip(n) {
    glows in its theme's colour; the ones you could take next are lit and pulse. The background is plain black, with
    each quarter's name on it. */
 const HEXPTS = r => [0, 1, 2, 3, 4, 5].map(i => (Math.cos(Math.PI / 3 * i + Math.PI / 6) * r).toFixed(1) + ',' + (Math.sin(Math.PI / 3 * i + Math.PI / 6) * r).toFixed(1)).join(' ');
+/* how far a node's outline is from its middle, going in a given direction: where a path to it stops (the start has no shape of its own) */
+function edgeAt(id, ux, uy) {
+  if (id === 'start') return 0;
+  const n = D.NODE[id], shape = nodeShape(n), ax = Math.abs(ux), ay = Math.abs(uy);
+  if (shape === 'bead') return n.eff === 'tier' ? 10.6 / (ax + ay) : 7.5;       // a diamond, or a small circle
+  if (shape === 'hub') return 27 * 0.866;                                       // a hexagon: its flat sides
+  if (shape === 'key') return 20 / Math.max(ax, ay);                            // a square
+  return 21;
+}
 const nodeShape = n => !n.big ? 'bead' : /^(post|sock)2?$/.test(n.eff) || n.eff === 'bench2' ? 'hub' : /^u[A-Z]/.test(n.eff) ? 'key' : 'notable';      // the block of nine round the start is all squares
 /* When the page opens the tree ripples out from its centre, twice: a faint ring spreads from the first node and each
    path and node comes up softly as it passes, then a second ring follows and they brighten a little once more. It is
    slow and quiet. The page is drawn again while that plays (and it must not start over), so every delay is counted
    from when the page opened. */
-const RIPPLE = { spread: 1.5, reach: 640, fade: 1.3, gap: 0.62 };      // seconds for a ripple to get from the centre to `reach` (the tree's far edge); how long a node's two swells take; and how far the second ripple is behind the first
+const RIPPLE = { spread: 1.5, reach: 640, fade: 1.3, gap: 0.62, dark: 0.5, hold: 3.2 };      // (dark: the tree is black this long as the page opens, then what is held fades in, and at `hold` the ripple starts)      // seconds for a ripple to get from the centre to `reach` (the tree's far edge); how long a node's two swells take; and how far the second ripple is behind the first
+/* (hold: when the page is opened the ripple waits this long first, with only what is held standing there: the tree you
+   have is seen by itself for a moment before the rest of it comes up round it) */
 /* The tree opens in three steps: the first weapon alone; then Upgrade and the socket beside it; then, once both of
    those are held, all of it, rippling out from the middle. (A save that holds anything further out sees all of it.) */
-const TREE_PAUSE = 0.7;                         // seconds between buying the second of the two and the whole tree rippling out
+const TREE_PAUSE = 1.05;                        // seconds between buying the second of the two and the whole tree rippling out
 function treeStage() {
   const core = id => D.TREE_GATE.includes(id) || D.TREE_FIRST.includes(id);
   if (G.firstHeld() || Object.keys(G.S.tree).some(id => !core(id))) return 2;
@@ -270,25 +281,34 @@ function treeSVG() {
   UI.treeStage = stage;
   const shown = id => id === 'start' || stage === 2 || D.TREE_GATE.includes(id) || (stage === 1 && D.TREE_FIRST.includes(id));
   const rt = performance.now() / 1000 - (UI.presAt == null ? -99 : UI.presAt), rip = rt < RIPPLE.spread + RIPPLE.fade + 0.4, ring = RIPPLE.spread * 740 / RIPPLE.reach;      // (a ring is drawn out to 740, at the ripple's own pace)
-  const rd = (x, y) => rip ? `animation-delay:${(Math.hypot(x, y) / RIPPLE.reach * RIPPLE.spread - rt).toFixed(2)}s;` : '';
-  let h = `<svg id="tree"${rip ? ` class="ripple${stage < 2 ? ' one' : ''}"` : ''} viewBox="-615 -372 1230 744" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+  // (the page just opened: what is held comes up out of the dark first, by itself, and that is counted from the opening, not from the ripple)
+  const opening = rip && UI.presOpen != null && UI.presAt === UI.presOpen + RIPPLE.hold, od = opening ? (UI.presOpen + RIPPLE.dark - performance.now() / 1000).toFixed(2) + 's' : '';
+  // (one of the two beside the first weapon taken and the other not: they come up together, as a pair, with what is held, and neither waits for the ripple)
+  const early = id => opening && stage < 2 && id !== 'start' && !G.has(id);      // (and so does everything else there is to see before the whole tree has opened: there is no ripple until then, only the fade)
+  const rd = (x, y, held) => rip ? `animation-delay:${held && opening ? od + ',' : ''}${((stage < 2 ? 0 : Math.hypot(x, y) / RIPPLE.reach * RIPPLE.spread) - rt).toFixed(2)}s;` : '';
+  const rgd = rip ? `animation-delay:${(0.5 - rt).toFixed(2)}s` : '';      // the four names come up with the ripple too, not before it
+  let h = `<svg id="tree"${rip ? ` class="ripple${stage < 2 ? ' one' : ''}${opening ? ' opening' : ''}"${opening ? ` style="--od:${od}"` : ''}` : ''} viewBox="-615 -372 1230 744" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
     <defs>
       <radialGradient id="gorb" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset=".45" stop-color="#fff" stop-opacity=".08"/><stop offset="1" stop-color="#000" stop-opacity=".28"/></radialGradient>
     </defs>
     <g class="bg">${stage < 2 ? '' : `
-      <text class="region" x="-575" y="-318" style="--c:#ff9a4a">ARSENAL</text><text class="region" x="575" y="-318" text-anchor="end" style="--c:#b48cff">WORKSHOP</text>
-      <text class="region" x="0" y="-348" text-anchor="middle" style="--c:#5aa8ff">CONTROL</text><text class="region" x="0" y="360" text-anchor="middle" style="--c:#ff5a48">ATTRITION</text>`}
-    </g>${rip ? (stage < 2 ? [0.12] : [0.12, 0.12 + RIPPLE.gap]).map(d => `<circle class="ripwave" r="100" style="animation-duration:${ring.toFixed(2)}s;animation-delay:${(d - rt).toFixed(2)}s"/>`).join('') : ''}<g class="links">`;
+      <text class="region" x="-575" y="-318" style="--c:#ff9a4a;${rgd}">ARSENAL</text><text class="region" x="575" y="-318" text-anchor="end" style="--c:#b48cff;${rgd}">WORKSHOP</text>
+      <text class="region" x="0" y="-348" text-anchor="middle" style="--c:#5aa8ff;${rgd}">CONTROL</text><text class="region" x="0" y="360" text-anchor="middle" style="--c:#ff5a48;${rgd}">ATTRITION</text>`}
+    </g>${rip ? (stage < 2 ? [] : [0.12, 0.12 + RIPPLE.gap]).map(d => `<circle class="ripwave" r="100" style="animation-duration:${ring.toFixed(2)}s;animation-delay:${(d - rt).toFixed(2)}s"/>`).join('') : ''}<g class="links">`;
   for (const n of D.TREE) for (const l of n.links) {
     if (!shown(n.id) || !shown(l)) continue;
     const a = at(l), on = G.has(n.id) && G.has(l), next = !on && ((G.has(l) && G.canAllocate(n.id)) || (G.has(n.id) && l !== 'start' && G.canAllocate(l)));
-    h += `<line class="link${on ? ' on' : next ? ' next' : ''}" style="--c:${D.TREE_EFF[n.eff].col};${rd((a.x + n.x) / 2, (a.y + n.y) / 2)}" x1="${a.x}" y1="${a.y}" x2="${n.x}" y2="${n.y}"/>`;
+    // a path stops at the edge of each node it joins, and does not run on to its middle: a node that is fading in is half clear, and the path showed through it
+    const len = Math.hypot(n.x - a.x, n.y - a.y) || 1, ux = (n.x - a.x) / len, uy = (n.y - a.y) / len, ta = Math.max(0, edgeAt(l, ux, uy) - 0.6), tn = Math.max(0, edgeAt(n.id, ux, uy) - 0.6), cut = ta + tn < len - 1;
+    const f = v => +v.toFixed(1), x1 = cut ? f(a.x + ux * ta) : a.x, y1 = cut ? f(a.y + uy * ta) : a.y, x2 = cut ? f(n.x - ux * tn) : n.x, y2 = cut ? f(n.y - uy * tn) : n.y;
+    const el = early(n.id) || early(l);
+    h += `<line class="link${on ? ' on' : next ? ' next' : ''}${el ? ' early' : ''}" style="--c:${D.TREE_EFF[n.eff].col};${rd((a.x + n.x) / 2, (a.y + n.y) / 2, on || el)}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`;
   }
   h += `</g><g class="startnode"><circle r="35" class="halo"/></g>`;
   for (const n of D.TREE) {
     if (!shown(n.id)) continue;
     const E = D.TREE_EFF[n.eff], held = G.has(n.id), edge = !held && G.touches(n.id), open = edge && G.canAllocate(n.id), shape = nodeShape(n), R = shape === 'hub' ? 27 : n.big ? 21 : 7.5;      // a hub is the biggest thing on the tree: it matters most
-    h += `<g class="node ${shape}${n.eff === 'tier' ? ' tier' : ''}${n.big ? ' big' : ''}${held ? ' held' : open ? ' open' : edge ? ' edge locked' : ' locked'}" style="--c:${E.col};${rd(n.x, n.y)}" data-act="node" data-node="${n.id}" transform="translate(${n.x} ${n.y})"><circle class="hit" r="${R + 7}"/>`;
+    h += `<g class="node ${shape}${n.eff === 'tier' ? ' tier' : ''}${n.big ? ' big' : ''}${held ? ' held' : open ? ' open' : edge ? ' edge locked' : ' locked'}${early(n.id) ? ' early' : ''}" style="--c:${E.col};${rd(n.x, n.y, held || early(n.id))}" data-act="node" data-node="${n.id}" transform="translate(${n.x} ${n.y})"><circle class="hit" r="${R + 7}"/>`;
     if (shape === 'bead' && n.eff === 'tier') h += `<rect class="ring" x="-7.5" y="-7.5" width="15" height="15" rx="1.5" transform="rotate(45)"/>${held ? '' : '<circle class="pip" r="2.6"/>'}`;      // a skill tier: a diamond, to be found at a glance
     else if (shape === 'bead') h += `<circle class="ring" r="${R}"/>${held ? `<circle class="shine" r="${R}"/>` : '<circle class="pip" r="2.6"/>'}`;
     else {
@@ -479,7 +499,7 @@ UI.playDataNotice = function () {
   modal(`<h3>One new thing</h3><p>This test build can send anonymous notes on how your runs go, to help balance the game.</p>${playDataLine()}
     <div class="btns"><button class="big" data-act="close">Continue</button></div>`);
 };
-function showPrestige(on) { if (!on && G.S.alloc) return; if (on && !UI.pres) UI.presAt = performance.now() / 1000; UI.pres = !!on; $('prestige').classList.toggle('hidden', !on); if (on) renderCores(); hideTip(); }
+function showPrestige(on) { if (!on && G.S.alloc) return; if (on && !UI.pres) { UI.presOpen = performance.now() / 1000; UI.presAt = UI.presOpen + RIPPLE.hold; } UI.pres = !!on; $('prestige').classList.toggle('hidden', !on); if (on) renderCores(); hideTip(); }
 UI.welcome = function () {
   modal(`<div class="plain"><h3>Smeltworks Idle</h3>
     <p>Click and hold to attack enemies.</p>
@@ -525,7 +545,7 @@ UI.onEvent = function (ev) {
     }
     case 'bagfull': toast(`<b class="t-${D.SKILL[ev.sk].c}">${D.SKILL[ev.sk].name}</b> row full: salvaged ${ci('gold')}${fmt(ev.gold)}`); break;
     case 'leveldone': interlude(ev); AU.play('level'); break;
-    case 'prestige': AU.play('master'); $('interlude').classList.add('hidden'); UI.sel = null; UI.fresh.clear(); UI.glows = {}; for (const el of document.querySelectorAll('.newglow')) el.classList.remove('newglow'); showPrestige(true); break;
+    case 'prestige': AU.play('treeOpen', null, Object.assign({ arp: treeStage() === 2 }, RIPPLE)); $('interlude').classList.add('hidden'); UI.sel = null; UI.fresh.clear(); UI.glows = {}; for (const el of document.querySelectorAll('.newglow')) el.classList.remove('newglow'); showPrestige(true); break;      // (the runs of notes are for the whole tree: before it has opened there is only the chord)
     case 'run': UI.pres = false; $('prestige').classList.add('hidden'); $('banner').innerHTML = ''; openTick(); AU.play('level'); UI.dirty = true; UI.render(); flashNew(); break;
     case 'goto': $('interlude').classList.add('hidden'); break;
     case 'fail': $('banner').innerHTML = ''; $('dead-title').textContent = ev.boss ? 'Overrun' : 'Driven back'; $('dead-sub').textContent = ev.back ? 'Back to level ' + G.S.level : 'Level ' + G.S.level + ' restarts'; deadTick(); AU.play('death'); break;

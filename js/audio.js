@@ -30,7 +30,9 @@ function tone(o) {
   osc.frequency.setValueAtTime(o.f, t);
   if (o.to) osc.frequency.exponentialRampToValueAtTime(Math.max(20, o.to), t + o.dur);
   g.gain.setValueAtTime(0.0001, t);
-  g.gain.exponentialRampToValueAtTime(o.vol || 0.2, t + (o.atk || 0.005));
+  if (o.lin) g.gain.linearRampToValueAtTime(o.vol || 0.2, t + (o.atk || 0.005));      // (lin: a long rise that is heard from its start. The usual curve spends most of a slow attack too quiet to hear)
+  else g.gain.exponentialRampToValueAtTime(o.vol || 0.2, t + (o.atk || 0.005));
+  if (o.sus) g.gain.setValueAtTime(o.vol || 0.2, t + (o.atk || 0.005) + o.sus);      // (sus: it stays level this long before it dies away)
   g.gain.exponentialRampToValueAtTime(0.0001, t + o.dur);
   osc.connect(g); g.connect(master);
   osc.start(t); osc.stop(t + o.dur + 0.02);
@@ -76,6 +78,15 @@ const SND = {
   /* the whole tree opens: a low swell under two rising waves of notes, one for each ripple */
   unlock()   { tone({ f: 55, to: 82, dur: 2.2, type: 'sine', vol: 0.28 }); noise({ f: 900, dur: 1.4, vol: 0.05, q: 0.6 });
                [[196, 294, 392, 587], [262, 392, 523, 784, 1047]].forEach((w, k) => w.forEach((f, i) => tone({ f, dur: 0.9, type: 'triangle', vol: 0.09, at: 0.1 + k * 0.62 + i * 0.11 }))); },
+  /* the prestige page opens: quiet, and timed to what is seen (ui.js RIPPLE: dark for `dark`, what is held fades in over
+     2.2 seconds, the ripple starts at `hold`, the second `gap` after). A soft chord starts with the click, swells through the dark and the fade, and hangs; then
+     two slow rising runs of soft notes, one as each ripple goes out. No hammer, nothing sharp. */
+  treeOpen(o) { const LEAD = 0.25;      // the runs of notes begin this long before the ripples they go with (the ripples themselves stay where they are): by ear
+               const dark = o && o.dark != null ? o.dark : 0.5, hold = o && o.hold != null ? o.hold : 3.2, gap = o && o.gap != null ? o.gap : 0.62;
+               [[165, 0.06], [220, 0.05], [277.2, 0.035]].forEach(([f, vol]) => tone({ f, dur: hold + 3.15 - dark, atk: 1.25, type: 'sine', vol }));      // (it begins with the click, not after the dark: there was a low note under it, to be there first, and it was more trouble than it was worth)
+               if (o && o.arp === false) return;      // before the whole tree has opened (the first weapon, then the two beside it) the chord is all there is
+               noise({ f: 500, to: 900, dur: 2.4, vol: 0.012, q: 0.5, ft: 'lowpass', at: hold - LEAD });
+               [[220, 330, 440, 554.4], [277.2, 440, 554.4, 659.3, 880]].forEach((w, k) => w.forEach((f, i) => tone({ f, dur: 1.6, atk: 0.09, type: 'sine', vol: 0.05 - k * 0.008, at: hold - LEAD + 0.12 + k * gap + i * 0.17 }))); },
   master()   { SND.forge(); [880, 1175, 1760].forEach((f, i) => tone({ f, dur: 0.5, type: 'triangle', vol: 0.1, at: 0.12 + i * 0.07 })); },
   tink()     { tone({ f: 2350, to: 2180, dur: 0.17, type: 'triangle', vol: 0.14 }); tone({ f: 3530, dur: 0.1, type: 'sine', vol: 0.06 }); noise({ f: 5200, dur: 0.03, vol: 0.16, q: 1.4 }); tone({ f: 190, to: 90, dur: 0.06, type: 'sine', vol: 0.12 }); },      // a hammer on the anvil
   // the fight: it goes on all day, so these are short and dull rather than bright, and sit under everything else
@@ -84,8 +95,8 @@ const SND = {
   tap()      { noise({ f: 800, to: 300, dur: 0.05, vol: 0.128, q: 0.8 }); tone({ f: 150, to: 70, dur: 0.06, type: 'triangle', vol: 0.128 }); },            // your own blow
   tapCrit()  { noise({ f: 1500, to: 400, dur: 0.09, vol: 0.16, q: 0.7 }); tone({ f: 280, to: 70, dur: 0.12, type: 'triangle', vol: 0.136 }); },
   // (it was a faint low hum, lost under a line of weapons and below what small speakers play: now a dull knock that can be heard)
-  ouch()     { tone({ f: 250, to: 120, dur: 0.11, type: 'triangle', vol: 0.16 }); noise({ f: 520, dur: 0.05, vol: 0.09 }); },                                                                           // an enemy's swing
-  ouchBig()  { tone({ f: 200, to: 60, dur: 0.3, type: 'triangle', vol: 0.26 }); noise({ f: 320, to: 90, dur: 0.24, vol: 0.18, ft: 'lowpass' }); },
+  ouch()     { tone({ f: 180, to: 80, dur: 0.13, type: 'triangle', vol: 0.2 }); noise({ f: 380, dur: 0.06, vol: 0.11 }); },                                                                           // an enemy's swing
+  ouchBig()  { tone({ f: 150, to: 42, dur: 0.34, type: 'triangle', vol: 0.31 }); noise({ f: 240, to: 70, dur: 0.26, vol: 0.21, ft: 'lowpass' }); },
   fall()     { noise({ f: 500, to: 120, dur: 0.12, vol: 0.072, q: 0.6 }); },                                                                               // a kill
   chink()    { tone({ f: 1320, dur: 0.04, type: 'sine', vol: 0.016 }); },                                                                                  // its gold
   zap()      { noise({ f: 2600, to: 900, dur: 0.06, vol: 0.053, q: 2 }); },                                                                                // a staff's arc
@@ -109,12 +120,12 @@ const SND = {
   stun()     { tone({ f: 900, to: 1300, dur: 0.1, type: 'square', vol: 0.04 }); },
 };
 /* play a named sound. Repeats of the same sound are throttled so 4× speed doesn't turn to noise. */
-A.play = function (name, gap) {
+A.play = function (name, gap, arg) {
   if (!A.on || !SND[name]) return;
   if (!ensure() || ctx.state !== 'running') return;
   const now = ctx.currentTime, min = gap != null ? gap : 0.045;
   if (last[name] && now - last[name] < min) return;
   last[name] = now;
-  try { SND[name](); } catch (e) { /* audio hiccup: ignore */ }
+  try { SND[name](arg); } catch (e) { /* audio hiccup: ignore */ }
 };
 })();
