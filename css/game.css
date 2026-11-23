@@ -395,6 +395,7 @@ button.buyskill { display: block; width: 100%; margin: 0 0 8px; padding: 11px 12
 #modal p { color: var(--dim); line-height: 1.5; margin: 6px 0; } #modal p b { color: var(--text); }
 /* the play-data switch, in the welcome box, its own notice, and Settings */
 #modal .teleopt { display: flex; gap: 10px; align-items: flex-start; margin: 14px 0 4px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 5px; background: var(--panel2); cursor: pointer; }
+#modal .plain b, #modal .plain .teleopt b { font-weight: 400; }      /* the first box: nothing in bold */
 #modal .teleopt input { margin-top: 3px; width: 16px; height: 16px; accent-color: var(--ember); flex: none; }
 #modal .teleopt b { display: block; color: var(--text); font-weight: 600; } #modal .teleopt small { display: block; margin-top: 3px; color: var(--dim); font-size: 12px; line-height: 1.45; }
 #modal .btns { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; flex-wrap: wrap; }

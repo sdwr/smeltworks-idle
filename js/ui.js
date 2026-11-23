@@ -481,11 +481,10 @@ UI.playDataNotice = function () {
 };
 function showPrestige(on) { if (!on && G.S.alloc) return; if (on && !UI.pres) UI.presAt = performance.now() / 1000; UI.pres = !!on; $('prestige').classList.toggle('hidden', !on); if (on) renderCores(); hideTip(); }
 UI.welcome = function () {
-  modal(`<h3>Smeltworks Idle</h3>
-    <p><b>Click enemies</b> to strike them. Hold to keep striking.</p>
-    <p>Their attacks drain <b>Life</b>, which must last the whole level.</p>
-    <p>Every level you clear pays <b>cores</b>. Prestige to bank and spend them.</p>${playDataLine()}
-    <div class="btns"><button class="big" data-act="close">Begin</button></div>`);
+  modal(`<div class="plain"><h3>Smeltworks Idle</h3>
+    <p>Click and hold to attack enemies.</p>
+    <p>Complete a full level before your life runs out to gain cores, then prestige.</p>${playDataLine()}
+    <div class="btns"><button class="big" data-act="close">Begin</button></div></div>`);
 };
 UI.offline = function (o) {
   const h = Math.floor(o.secs / 3600), m = Math.floor(o.secs % 3600 / 60);
