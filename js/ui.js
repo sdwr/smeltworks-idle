@@ -95,6 +95,8 @@ function readDps(force) {
 
 /* ------------------------------------------------------------------ the line (left) */
 const UP_SECS = 0.9;                            // and how long a weapon's whole card flashes when it is upgraded
+const ENTER_SECS = 0.45;                        // a beat between equipping a weapon and its card landing in the list
+const SCRAP_SECS = 0.7;                         // how long a scrapped weapon's card takes to break up and go
 const NEW_SECS = 3.2;                           // how long a newly made weapon's card and post glow
 function renderLine() {
   const S = G.S, X = G.X, C = X.cursor, now = performance.now() / 1000;
@@ -106,8 +108,11 @@ function renderLine() {
   // the cursor and that heading stay put; the weapons scroll beneath them, in a box of their own
   h += '<div class="posts">';
   S.posts.forEach((P, p) => {
-    if (!P.unit) { h += `<div class="card empty" data-post="${p}"><div class="pic"></div><div class="who"><b>Empty weapon slot</b></div><div class="stats">&nbsp;</div><div class="statlist"><span class="none">&nbsp;</span></div>${G.treeVal('uUp') ? '<div class="uprow"></div>' : ''}</div>`; return; }      // laid out like a weapon with no skills, so the line does not jump when one is equipped
-    const u = P.unit, W = X.units[p], wd = D.WEAPONS[u.type], age = UI.born[u.id] != null ? now - UI.born[u.id] : 99, upAge = UI.upAt[u.id] != null ? now - UI.upAt[u.id] : 99, scrap = G.scrapValue(u);
+    const coming = P.unit && UI.born[P.unit.id] != null && now - UI.born[P.unit.id] < ENTER_SECS;      // equipped a moment ago: its slot waits, lit, and then the card lands
+    const ghost = !P.unit && UI.gone && UI.gone[p] && now - UI.gone[p].at < SCRAP_SECS ? UI.gone[p] : null;      // scrapped a moment ago: what it was, breaking up
+    if (ghost) { h += ghost.html.replace('class="card post', `style="animation-delay:-${(now - ghost.at).toFixed(2)}s" class="card post scrapped`); return; }
+    if (!P.unit || coming) { h += `<div class="card empty${coming ? ' coming' : ''}" data-post="${p}"><div class="pic"></div><div class="who"><b>${coming ? '&nbsp;' : 'Empty weapon slot'}</b></div><div class="stats">&nbsp;</div><div class="statlist"><span class="none">&nbsp;</span></div>${G.treeVal('uUp') ? '<div class="uprow"></div>' : ''}</div>`; return; }      // laid out like a weapon with no skills, so the line does not jump when one is equipped
+    const u = P.unit, W = X.units[p], wd = D.WEAPONS[u.type], age = UI.born[u.id] != null ? now - UI.born[u.id] - ENTER_SECS : 99, upAge = UI.upAt[u.id] != null ? now - UI.upAt[u.id] : 99, scrap = G.scrapValue(u);
     const lit = upAge < UP_SECS ? ['upglow', upAge] : age < NEW_SECS ? ['isnew', age] : null;      // an upgrade's flash, or a new weapon's glow: whichever is the more recent
     h += `<div class="card post${lit ? ' ' + lit[0] : ''}" data-post="${p}"${lit ? ` style="animation-delay:-${lit[1].toFixed(2)}s"` : ''}><div class="pic" data-tip-text="${esc(G.unitName(u))}: ${wd.note} Overkill carries to ${wd.carry} more."><img src="${SP.url(wd.spr, palOf(u), 3)}" alt=""><div class="cdbar"><i data-cd="${p}"></i></div></div>
       <div class="who"><b>${esc(G.unitName(u))}${u.up ? ` <i class="rank" data-tip-text="Upgraded: +${u.up * D.UP.dmg}% damage">+${u.up}</i>` : ''}</b><span class="dps"><span data-tip-text="${POWER_TIP}"><b>${fmt1(W.power)}</b> power</span> · <span data-tip-text="${DPS_TIP}"><b data-dps="${p}">${shownDps[p] || '0'}</b> dps</span></span>
@@ -500,7 +505,7 @@ const REDRAW = new Set(['socket', 'buy', 'upgrade', 'forging', 'made', 'sell', '
 UI.onEvent = function (ev) {
   if (REDRAW.has(ev.t)) UI.dirty = true;
   if (ev.t === 'buy' || ev.t === 'sell') shownDps[ev.post] = '0';
-  if (ev.t === 'buy') { const P = G.S.posts[ev.post], u = P && P.unit; if (u) UI.born[u.id] = performance.now() / 1000; AU.play('equip'); }      // (it may be gone again already)
+  if (ev.t === 'buy') { const P = G.S.posts[ev.post], u = P && P.unit; if (u) { UI.born[u.id] = performance.now() / 1000; setTimeout(() => { UI.dirty = true; AU.play('seat'); }, ENTER_SECS * 1000 + 20); } AU.play('equip'); }      // (it may be gone again already)
   // on the anvil: three blows of the hammer, a tink and a burst of sparks each, and then it is done
   if (ev.t === 'forging') for (let i = 0; i < 3; i++) setTimeout(tink, i * ev.secs * 1000 / 3 + 40);
   // and the new weapon is on the bench: it rings, and shines for a moment. A reroll of its type or its sockets ends the same way
@@ -549,7 +554,11 @@ function act(name, b, ev) {
       if (G.emptyPost() < 0) { ok = false; toast('Scrap one weapon first (✕)'); break; }
       ok = G.equip();
       break;
-    case 'sell': ok = G.sell(+d.post); if (ok) AU.play('salvage'); break;
+    case 'sell': {      // the card is kept a moment after the weapon is gone, to be seen breaking
+      const card = document.querySelector(`#line .card.post[data-post="${+d.post}"]`), html = card ? card.outerHTML.replace(/ style="[^"]*"/, '').replace(/class="card post[^"]*"/, 'class="card post"').replace(/data-act="[^"]*"/g, '') : '';
+      ok = G.sell(+d.post);
+      if (ok) { AU.play('scrap'); if (html) { (UI.gone || (UI.gone = {}))[+d.post] = { html, at: performance.now() / 1000 }; setTimeout(() => { UI.dirty = true; }, SCRAP_SECS * 1000 + 30); } }
+      break; }
     case 'upgrade': ok = G.upgrade(+d.post); if (ok) { const p = +d.post; UI.upAt[G.S.posts[p].unit.id] = performance.now() / 1000; setTimeout(() => tink(`#line .card[data-post="${p}"] .pic`), 40); } break;      // once the line has been drawn again
     case 'craft': { const at = G.find(UI.sel), before = at ? at.gem.aff.slice() : []; ok = G.craft(d.kind, UI.sel); if (ok) { affFx(at.gem, before); AU.play(d.kind === 'strip' ? 'forge' : 'master'); setTimeout(() => { UI.dirty = true; }, AFF_FX * 1000 + 30); } break; }      // (drawn once more when it has played, to clear it away)
     case 'bench-swap': ok = G.swapBench(); if (ok) AU.play('click'); break;

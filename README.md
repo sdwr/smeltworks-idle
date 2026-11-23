@@ -168,6 +168,9 @@ It is a separate game from `../smeltworks` and shares nothing with it at run tim
 - **A run opens on an empty arena** for three seconds (`D.RUN_SECS`), with a 3, 2, 1 count in the middle and no words: time to forge a weapon before the first enemies come.
 - **A run's first weapon always has a socket for a skill already in the bag.** If none of its sockets is a colour the bag holds, one of them becomes one, and it keeps one if its sockets are rerolled. Later weapons are as they roll.
 - **A fight's first blow is not instant.** Between fights a weapon winds up only so far (`D.REACH`): what is left when the fight opens is what it takes to cross to its enemy, so a dagger is seen going out and not just appearing on its target.
+- **Equipping a weapon lands.** Its slot in the list lights for a beat (0.45 s), then the card drops in with a thud and a ring of steel, and glows as before.
+- **Scrapping a weapon breaks it.** Its card is struck white and red, shakes, buckles and drops away over 0.7 s, to a hammer blow, the steel giving and the pieces settling. (The weapon and its gold are gone at once: it is the card that lingers.)
+- **The tree's ripple brings in what is not held.** Nodes you hold, and the paths between them, are there the moment the page opens; the ripple fades in the rest and only brightens the held ones as it passes.
 - **A node's price is always above it** on the tree, whatever its shape.
 - **There is no total dps in the top bar**: each weapon's card has its own.
 - **An enemy's blow can be heard.** It was a faint low hum, lost under a line of weapons and below what small speakers play; it is a dull knock now, and a slam a heavier one.

@@ -64,6 +64,12 @@ const SND = {
   // a node of the prestige tree taken: a bead is a small bright set; a hub, an unlock or a notable rings out
   node()     { tone({ f: 784, dur: 0.14, type: 'triangle', vol: 0.12 }); tone({ f: 1175, dur: 0.2, type: 'sine', vol: 0.08, at: 0.05 }); noise({ f: 3200, dur: 0.03, vol: 0.1, q: 1.5 }); tone({ f: 160, to: 90, dur: 0.08, type: 'sine', vol: 0.14 }); },
   nodeBig()  { [523, 784, 1047, 1568].forEach((f, i) => tone({ f, dur: 0.45, type: 'triangle', vol: 0.11, at: i * 0.05 })); noise({ f: 2600, dur: 0.04, vol: 0.14, q: 1.2 }); tone({ f: 110, to: 55, dur: 0.3, type: 'sine', vol: 0.26 }); },
+  /* the weapon lands on the line: a heavy thud, a ring of steel over it */
+  seat()     { tone({ f: 150, to: 48, dur: 0.32, type: 'sine', vol: 0.34 }); noise({ f: 700, to: 200, dur: 0.12, vol: 0.2, q: 0.8 }); tone({ f: 1320, to: 1250, dur: 0.6, type: 'triangle', vol: 0.1, at: 0.02 }); tone({ f: 1980, dur: 0.35, type: 'sine', vol: 0.05, at: 0.02 }); },
+  /* a weapon scrapped: a hammer blow, the steel giving, and the pieces settling */
+  scrap()    { tone({ f: 130, to: 36, dur: 0.45, type: 'sine', vol: 0.36 }); noise({ f: 500, to: 120, dur: 0.22, vol: 0.26, q: 0.7 });
+               [[980, 610], [1470, 880], [2210, 1300]].forEach(([f, to], i) => tone({ f, to, dur: 0.38, type: 'sawtooth', vol: 0.045, at: 0.03 + i * 0.015 }));
+               [0.2, 0.29, 0.36, 0.46].forEach((at, i) => noise({ f: 2600 - i * 400, dur: 0.05, vol: 0.12 - i * 0.02, q: 2.5, at })); tone({ f: 70, to: 45, dur: 0.25, type: 'sine', vol: 0.16, at: 0.34 }); },
   equip()    { noise({ f: 2600, to: 900, dur: 0.07, vol: 0.12, q: 2 }); tone({ f: 420, to: 300, dur: 0.08, type: 'triangle', vol: 0.1 }); },
   salvage()  { noise({ f: 1500, to: 300, dur: 0.22, vol: 0.14, q: 1.2 }); tone({ f: 220, to: 110, dur: 0.2, type: 'sawtooth', vol: 0.06 }); },
   forge()    { tone({ f: 1480, to: 1400, dur: 0.5, type: 'triangle', vol: 0.16 }); tone({ f: 2220, dur: 0.3, type: 'sine', vol: 0.07 }); noise({ f: 3000, dur: 0.05, vol: 0.2 }); tone({ f: 120, to: 60, dur: 0.15, type: 'sine', vol: 0.25 }); },
