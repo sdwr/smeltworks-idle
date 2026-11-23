@@ -182,7 +182,6 @@ const craftMult = () => 1 - Math.min(75, G.treeVal('craft')) / 100;
 D.CRAFTS = [
   { id: 'strip',  name: 'Remove affix', price: 'strip', mult: 1,   can: g => g.aff.length > 0, why: 'No affix', text: () => 'One, at random' },
   { id: 'recast', name: 'Reroll affixes', price: 'recast', mult: 1,   can: g => g.aff.length > 0, why: 'No affix', text: () => 'New affixes' },
-  { id: 'one',    name: 'Replace one affix', price: 'recast', mult: 1.5, node: 'cOne', pick: 1, can: g => g.aff.length > 1, why: 'Needs two affixes', text: () => 'One new affix' },
   { id: 'add',    name: 'Add an affix', price: 'recast', mult: 2,   node: 'cAdd', can: g => g.aff.length < 2, why: 'Has two already', text: () => 'One more affix' },
   { id: 'third',  name: 'Add a third affix', price: 'recast', mult: 5,   node: 'cThird', can: g => g.aff.length === 2, why: 'Needs two affixes', text: () => 'A third affix' },
   { id: 'morph',  name: 'Transmute', price: 'recast', mult: 2,   node: 'cMorph', can: () => true, text: () => 'Becomes another skill' },
@@ -191,15 +190,13 @@ D.CRAFT_BY = {}; D.CRAFTS.forEach(c => D.CRAFT_BY[c.id] = c);
 G.craftUnlocked = id => { const c = D.CRAFT_BY[id]; return !!c && (!c.node || G.treeVal(c.node) > 0); };
 /* what a craft costs goes by how deep the run has been, as a new weapon and a bought skill do: not by the skill */
 G.craftCost = (id, gem) => { const c = D.CRAFT_BY[id]; return Math.ceil(D.FORGE[c.price](G.S.maxLevel) * c.mult * craftMult()); };
-/* craft a skill: `which` is the affix to replace, for 'one' */
-G.craft = function (kind, id, which) {
+/* craft a skill */
+G.craft = function (kind, id) {
   const at = G.find(id), c = D.CRAFT_BY[kind]; if (!at || !c || !G.craftUnlocked(kind)) return false;
   const gem = at.gem; if (!c.can(gem)) return false;
-  if (kind === 'one' && !gem.aff[which]) return false;
   if (!spend(G.craftCost(kind, gem))) return false;
   if (kind === 'strip') gem.aff.splice(Math.floor(U.rng() * gem.aff.length), 1);      // which one goes is not yours to choose
   else if (kind === 'recast') { const n = gem.aff.length; gem.aff = []; while (gem.aff.length < n) gem.aff.push(G.rollAffix(gem)); }
-  else if (kind === 'one') gem.aff[which] = G.rollAffix(gem, gem.aff[which].k);          // never the one it replaces, nor one it has
   else if (kind === 'add' || kind === 'third') gem.aff.push(G.rollAffix(gem));
   else if (kind === 'morph') {
     const others = D.SKILLS.map(k => G.dropOf(k)).filter(id => id !== gem.sk); if (others.length) gem.sk = U.pick(others);
@@ -374,18 +371,19 @@ G.touches = id => { const n = D.NODE[id]; return !!n && !G.has(id) && n.near.som
 G.canAllocate = id => G.S.alloc && G.touches(id) && G.cores() >= G.nodeCost(id);
 G.allocate = function (id) {
   const S = G.S; if (!G.canAllocate(id)) return false;
-  const c = G.nodeCost(id); S.bank -= c; S.tree[id] = 1; (S.fresh = S.fresh || {})[id] = c;
+  const c = G.nodeCost(id); S.bank -= c; S.tree[id] = 1;
   emit('tree'); return true;
 };
-/* A node is bought for good. Only one bought since the tree was last opened can be handed back (a slip of the hand),
-   for what it cost, and only if everything else held still reaches the middle without it. */
+/* Any node can be handed back while the tree is open (between runs), one at a time and for what it costs: one bought
+   a moment ago or many runs ago. The one condition is that everything else held still reaches the middle without it,
+   so a tree is taken apart from its tips inwards. There is no clearing it all at once. */
 G.canRemove = function (id) {
-  const S = G.S; if (!S.alloc || !S.tree[id] || !S.fresh || S.fresh[id] == null) return false;
+  const S = G.S; if (!S.alloc || !S.tree[id]) return false;
   const seen = new Set(['start']), todo = ['start'], near = x => x === 'start' ? D.TREE_START : D.NODE[x].near;
   while (todo.length) for (const y of near(todo.pop())) if (y !== id && y !== 'start' && S.tree[y] && !seen.has(y)) { seen.add(y); todo.push(y); }
   return seen.size === G.spent();          // the start, and every held node but this one
 };
-G.unallocate = function (id) { const S = G.S; if (!G.canRemove(id)) return false; S.bank += S.fresh[id]; delete S.fresh[id]; delete S.tree[id]; emit('tree'); return true; };
+G.unallocate = function (id) { const S = G.S; if (!G.canRemove(id)) return false; S.bank += G.nodeCost(id); delete S.tree[id]; emit('tree'); return true; };
 /* how many levels a run begins with already open: the Head start, as far as the deepest level ever cleared */
 G.headLevels = () => Math.min(G.treeVal('head'), G.S.best - 1);
 /* a run's beginning: level 1, nothing in hand but what the tree gives */
@@ -414,7 +412,7 @@ G.canPrestige = () => !G.S.alloc && (G.S.runs > 0 || G.S.maxLevel >= D.PRESTIGE_
 G.prestige = function () {
   const S = G.S; if (!G.canPrestige()) return false;
   S.best = Math.max(S.best, S.maxLevel); S.runs++; S.alloc = true;
-  const earned = G.runCores(); S.bank = G.cores() + earned; S.run.earn = 0; S.fresh = {};      // the run's cores are banked, and the tree opens
+  const earned = G.runCores(); S.bank = G.cores() + earned; S.run.earn = 0;      // the run's cores are banked, and the tree opens
   S.gold = 0; S.gps = 0; S.level = 1; S.maxLevel = 1; S.fight = 0; S.bag = []; S.forge = null; for (const P of S.posts) P.unit = null;
   S.bench = G.blankBench(); S.spare = null;
   G.F = freshFight(); G.recompute(); G.spawn();
@@ -424,7 +422,7 @@ G.prestige = function () {
 /* the tree is settled: build the line it gives and begin. Unspent points are kept for next time. */
 G.beginRun = function () {
   const S = G.S; if (!S.alloc) return false;
-  S.alloc = false; delete S.fresh;                // what was bought is bought
+  S.alloc = false; delete S.fresh;                // the tree is fixed until the run ends (S.fresh: left by saves from when only a node bought that visit could be handed back)
   S.posts = []; for (let i = 0, n = Math.min(D.POSTS_MAX, D.POSTS0 + G.treeVal('post') + G.treeVal('post2')); i < n; i++) S.posts.push({ unit: null });
   S.crafter = Math.min(D.CRAFT.max - D.CRAFT.sockets0, G.treeVal('sock') + G.treeVal('sock2'));
   newRun();
@@ -900,7 +898,7 @@ G.patch = function (S) {
   // ever reached, and keeps the posts and sockets it has until its next reset, when the tree decides them
   if (!S.tree) { S.tree = {}; S.alloc = false; S.best = Math.max((S.best || 0) + 1, S.maxLevel || 1); }
   delete S.cores; delete S.perk; delete S.run.from; if (S.stats) delete S.stats.cores;
-  const back = (S.tree.CLK ? 20 : 0) + (S.tree.CFU ? 40 : 0) + (S.tree.CPK ? 18 : 0);      // Lucky tiers, Fusing and Standing order are gone, with what they unlocked: what they cost comes back
+  const back = (S.tree.CLK ? 20 : 0) + (S.tree.CFU ? 40 : 0) + (S.tree.CPK ? 18 : 0) + (S.tree.CON ? 23 : 0);      // Lucky tiers, Fusing, Standing order and Fine work are gone, with what they unlocked: what they cost comes back
   for (const id in S.tree) if (!D.NODE[id]) delete S.tree[id];
   // a save from when a level of depth was a point and a node cost one: what it had not spent becomes cores, and it keeps its tree
   if (S.bank == null) S.bank = Math.max(0, (S.best || 1) - 1 - Object.keys(S.tree).length);

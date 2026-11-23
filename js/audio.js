@@ -74,8 +74,9 @@ const SND = {
   softCrit() { noise({ f: 1100, to: 380, dur: 0.07, vol: 0.108, q: 0.8 }); tone({ f: 210, to: 80, dur: 0.09, type: 'triangle', vol: 0.099 }); },          // and its critical
   tap()      { noise({ f: 800, to: 300, dur: 0.05, vol: 0.128, q: 0.8 }); tone({ f: 150, to: 70, dur: 0.06, type: 'triangle', vol: 0.128 }); },            // your own blow
   tapCrit()  { noise({ f: 1500, to: 400, dur: 0.09, vol: 0.16, q: 0.7 }); tone({ f: 280, to: 70, dur: 0.12, type: 'triangle', vol: 0.136 }); },
-  ouch()     { tone({ f: 150, to: 90, dur: 0.08, type: 'sine', vol: 0.068 }); },                                                                           // an enemy's swing
-  ouchBig()  { tone({ f: 130, to: 50, dur: 0.25, type: 'sine', vol: 0.13 }); noise({ f: 220, to: 80, dur: 0.2, vol: 0.091, ft: 'lowpass' }); },
+  // (it was a faint low hum, lost under a line of weapons and below what small speakers play: now a dull knock that can be heard)
+  ouch()     { tone({ f: 250, to: 120, dur: 0.11, type: 'triangle', vol: 0.16 }); noise({ f: 520, dur: 0.05, vol: 0.09 }); },                                                                           // an enemy's swing
+  ouchBig()  { tone({ f: 200, to: 60, dur: 0.3, type: 'triangle', vol: 0.26 }); noise({ f: 320, to: 90, dur: 0.24, vol: 0.18, ft: 'lowpass' }); },
   fall()     { noise({ f: 500, to: 120, dur: 0.12, vol: 0.072, q: 0.6 }); },                                                                               // a kill
   chink()    { tone({ f: 1320, dur: 0.04, type: 'sine', vol: 0.016 }); },                                                                                  // its gold
   zap()      { noise({ f: 2600, to: 900, dur: 0.06, vol: 0.053, q: 2 }); },                                                                                // a staff's arc

@@ -34,7 +34,7 @@ const U = SW.util = {
 };
 
 const D = SW.data = {};
-D.VERSION = '0.66.0';
+D.VERSION = '0.83.0';
 D.SAVE_KEY = 'smeltworks-idle-v1';
 
 /* ------------------------------------------------------------ the pace
@@ -183,8 +183,8 @@ D.REROLL_CUT = 30;         // the most the tree's Spare stock can take off a rer
 /* ------------------------------------------------------------ prestige: the tree
    A reset (prestige) ends the run: levels, gold, weapons and every skill go. What stays is the tree.
    A run earns cores for the levels it clears (D.CORE), and a reset banks them. They buy the tree's nodes (D.PRICE),
-   only between runs, and for good: a reset opens the tree, you buy what you can afford, and the tree is then
-   fixed until the next reset.
+   only between runs: a reset opens the tree, you buy what you can afford (and may hand nodes back, one at a time, for
+   what they cost), and the tree is then fixed until the next reset.
    The tree grows out from the middle, and a node can be taken only if it touches one you hold (or the start). There
    are three kinds of node:
      hubs      troop posts, sockets on every weapon the crafter makes, a second bench. They sit where paths meet.
@@ -196,7 +196,7 @@ D.REROLL_CUT = 30;         // the most the tree's Spare stock can take off a rer
 D.POSTS0 = 0; D.POSTS_MAX = 6;      // a new game has no weapon slot at all: each weapon node is one, six at the most
 D.PRESTIGE_AT = 2;                  // the first run cannot be ended until it has reached this level (and earned its first core). After that any run can be, at any time
 /* Cores. A run earns them: each level pays D.CORE(level) the first time the run clears it, deeper levels more. They
-   are banked when you prestige, and the tree's nodes are bought with them, for good: there is no respec. So every
+   are banked when you prestige, and the tree's nodes are bought with them (a node can be handed back for its price while the tree is open, one at a time). So every
    run pays something, a wall can be ground past, and what gates the tree is what its nodes cost:
      the first weapon 1, the socket and Upgrade 2 each
      the other unlocks: Rerolls 2, each colour of skill 4, the Market 5, Life 5
@@ -237,7 +237,6 @@ D.TREE_ICON = {
   life: 'M12 20.5S3.5 15 3.5 9.2A4.7 4.7 0 0 1 12 6.6a4.7 4.7 0 0 1 8.5 2.6C20.5 15 12 20.5 12 20.5z',
   might: 'M6 21V3M6 4.5h12.5l-3 3.75 3 3.75H6',
   tier: 'M12 2.5l2.4 2.8-2.4 2.8-2.4-2.8zM6 15.5l6-5 6 5M6 20.5l6-5 6 5',
-  cOne: 'M4 20l1-4.5L16.5 4a2.1 2.1 0 0 1 3 3L8 18.5zM14.5 6l3.5 3.5',
   cAdd: 'M4 7.5h16M4 13h9M18 14.5v6M15 17.5h6',
   cThird: 'M4 5.5h16M4 10.5h16M4 15.5h8M18 15v6M15 18h6',
   cMorph: 'M4.5 12a7.5 7.5 0 0 1 13-5.2M19.5 3.5V7.2H15.8M19.5 12a7.5 7.5 0 0 1-13 5.2M4.5 20.5v-3.7h3.7',
@@ -256,9 +255,9 @@ const HUB = '#ff9a4a', SOCK = '#b48cff', WPN = '#e8c060', HEX = '#6ab4ff', FORGE
 D.TREE_EFF = {
   // hubs
   post:   { name: 'Weapon',         amt: [0, 1], col: HUB,  text: () => 'Unlocks weapons', sum: v => `${D.POSTS0 + v} weapon${D.POSTS0 + v === 1 ? '' : 's'}` },
-  sock:   { name: 'Crafter socket', amt: [0, 1], col: SOCK, text: () => 'Unlocks sockets and skills', sum: v => `${D.CRAFT.sockets0 + v} socket${D.CRAFT.sockets0 + v === 1 ? '' : 's'}` },
+  sock:   { name: 'Forge socket', amt: [0, 1], col: SOCK, text: () => 'Unlocks sockets and skills', sum: v => `${D.CRAFT.sockets0 + v} socket${D.CRAFT.sockets0 + v === 1 ? '' : 's'}` },
   post2:  { name: 'Weapon',         amt: [0, 1], col: HUB,  text: () => '+1 weapon' },
-  sock2:  { name: 'Crafter socket', amt: [0, 1], col: SOCK, text: () => '+1 socket' },
+  sock2:  { name: 'Forge socket', amt: [0, 1], col: SOCK, text: () => '+1 socket' },
   uR:     { name: 'Might skills',   amt: [0, 1], col: '#ff5a48', text: () => 'Red skills drop as Twin Strike, Shockwave and Deathblow' },
   uB:     { name: 'Hex skills',     amt: [0, 1], col: '#5aa8ff', text: () => 'Blue skills drop as Frostbite, Concuss, Shatter and Ignite' },
   uG:     { name: 'Aid skills',     amt: [0, 1], col: '#6fdc6a', text: () => 'Green skills drop as Damage, Attack Speed and Defense Aura' },
@@ -291,7 +290,6 @@ D.TREE_EFF = {
   reroll: { name: 'Spare stock',   amt: [8, 0],  col: FORGE, text: v => `Bench rerolls ${v}% cheaper`, sum: v => `bench rerolls ${v}% cheaper` },
   cheap:  { name: 'Haggling',      amt: [4, 0],  col: FORGE, text: v => `Buying skills ${v}% cheaper`, sum: v => `skills ${v}% cheaper` },
   drops:  { name: 'Keen eye',      amt: [12, 0],  col: FORGE, text: v => `+${v}% skill drops`, sum: v => `+${v}% skill drops` },
-  cOne:   { name: 'Fine work',     amt: [0, 1],  col: FORGE, text: () => 'Craft: replace one affix' },
   cAdd:   { name: 'Second line',   amt: [0, 1],  col: FORGE, text: () => 'Craft: add a second affix' },
   cThird: { name: 'Third line',    amt: [0, 1],  col: FORGE, text: () => 'Craft: add a third affix' },
   cMorph: { name: 'Transmuting',   amt: [0, 1],  col: FORGE, text: () => 'Craft: change it into another skill' },
@@ -367,7 +365,6 @@ D.TREE = [];
   // east: the five sockets and the second bench, by way of the crafter
   way('e', 'F2', [], [200, 0], ['tier', 'cheap', 'craft'], 'K1', 'sock2');
   at('e1').x += 5;      // room for the first socket's hexagon
-  leaf('CON', 'e3', 0, 54, 'cOne');
   way('eu', 'K1', [], [370, -225], ['reroll', 'drops', 'craft', 'tier', 'drops', 'craft', 'reroll'], 'K2', 'sock2');
   leaf('CAD', 'eu3', -43, -30, 'cAdd');
   way('ed', 'K1', [], [370, 225], ['cheap', 'drops', 'craft', 'tier', 'drops', 'craft', 'cheap'], 'K3', 'sock2');

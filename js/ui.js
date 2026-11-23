@@ -3,7 +3,7 @@
 (function () {
 'use strict';
 const SW = globalThis.SW, D = SW.data, U = SW.util, G = SW.game, SP = SW.sprites, AU = SW.audio, AR = SW.arena;
-const UI = SW.ui = { born: {}, upAt: {}, sel: null, tab: 'skills', down: false, dragging: null, dirty: true, fresh: new Set(), hold: false, hx: 0, hy: 0 };
+const UI = SW.ui = { born: {}, upAt: {}, sel: null, down: false, dragging: null, dirty: true, fresh: new Set(), hold: false, hx: 0, hy: 0 };
 const $ = id => document.getElementById(id);
 const fmt = U.fmt, fmt1 = U.fmt1, esc = U.esc;
 const ci = k => `<i class="ci ${k}"></i>`;
@@ -45,7 +45,7 @@ function canPlace(id, post, i) {
 }
 function sockHTML(post, i) {
   const S = G.S, c = G.sockColor(post, i), gem = S.bench.sockets[i].gem;
-  return `<div class="sock c-${c || 'n'}${canPlace(UI.sel, post, i) ? ' ok' : ''}" data-sock="${post}:${i}"${gem ? '' : ` data-tip-text="Takes ${D.COLORS[c].name} skills"`}>${gem ? gemHTML(gem) : ''}</div>`;
+  return `<div class="sock c-${c || 'n'}${canPlace(UI.sel, post, i) ? ' ok' : ''}" data-sock="${post}:${i}"${gem ? '' : ` data-tip-text="Takes ${D.COLORS[c].name} skills. Right-click a skill to socket it."`}>${gem ? gemHTML(gem) : ''}</div>`;
 }
 /* a made weapon's skills, as what they have become. Each primary affix is an effect, shown as a tag in its colour
    (a weapon holds one of each). The secondary affixes are a plain list of stats underneath, added together.
@@ -96,6 +96,7 @@ function readDps(force) {
 }
 
 /* ------------------------------------------------------------------ the line (left) */
+const FAIL_SECS = 4.5;                          // how long the words stay up after a fight is lost (a run's opening words: 2.2)
 const UP_SECS = 0.9;                            // and how long a weapon's whole card flashes when it is upgraded
 const NEW_SECS = 3.2;                           // how long a newly made weapon's card and post glow
 function renderLine() {
@@ -104,7 +105,9 @@ function renderLine() {
     <div class="who"><b>Cursor</b><span class="dps"><b>${fmt1(C.dmg)}</b> a hit · <span data-tip-text="${DPS_TIP}"><b data-dps="-1">${shownDps[-1] || '0'}</b> dps</span></span></div>
     <div class="stats">${X.cooldown.toFixed(2)}s cooldown · ${Math.round(C.crit)}% crit${aoeText(C, true)}</div>
     </div>`;
-  if (S.posts.length) h += `<div class="linehead"><h4>Weapons</h4></div>`;       // nothing about troops until there is a post
+  if (S.posts.length) h += `<div class="linehead"><h4>Weapons - ${S.posts.filter(P => P.unit).length}/${S.posts.length}</h4></div>`;       // how many are equipped, of the slots there are       // nothing about troops until there is a post
+  // the cursor and that heading stay put; the weapons scroll beneath them, in a box of their own
+  h += '<div class="posts">';
   S.posts.forEach((P, p) => {
     if (!P.unit) { h += `<div class="card empty" data-post="${p}"><div class="pic"></div><div class="who"><b>Empty weapon slot</b></div><div class="stats">&nbsp;</div><div class="statlist"><span class="none">&nbsp;</span></div>${G.treeVal('uUp') ? '<div class="uprow"></div>' : ''}</div>`; return; }      // laid out like a weapon with no skills, so the line does not jump when one is equipped
     const u = P.unit, W = X.units[p], wd = D.WEAPONS[u.type], age = UI.born[u.id] != null ? now - UI.born[u.id] : 99, upAge = UI.upAt[u.id] != null ? now - UI.upAt[u.id] : 99, scrap = G.scrapValue(u);
@@ -117,8 +120,11 @@ function renderLine() {
       ${G.treeVal('uUp') ? `<div class="uprow"><div class="upbar${(u.up || 0) >= D.UP.max ? ' max' : ''}" data-tip-text="+${D.UP.dmg}% damage a rank"><i style="width:${100 * (u.up || 0) / D.UP.max}%"></i></div><span class="upn"><b>+${u.up || 0}</b> / ${D.UP.max}</span>
         ${(u.up || 0) < D.UP.max ? `<button class="small uprank${glow('upgrade')}" data-act="upgrade" data-post="${p}" data-cost="${G.upCost(u)}" data-cur="gold" data-tip-text="+${D.UP.gain[0]} to +${D.UP.gain[1]} ranks">Upgrade · ${ci('gold')}${fmt(G.upCost(u))}</button>` : ''}</div>` : ''}</div>`;
   });
-  // another post, for gold
+  h += '</div>';
+  // (the box is drawn again each time: it keeps its place)
+  const was = $('line').querySelector('.posts'), top = was ? was.scrollTop : 0;
   $('line').innerHTML = h;
+  if (top) $('line').querySelector('.posts').scrollTop = top;
 }
 
 /* how the weapon on the bench stands against the line: a green arrow up if it has more power than one that is
@@ -130,16 +136,16 @@ function benchArrow() {
   if (pw < low.pw) return `<i class="cmp down" data-tip-text="Weaker than every weapon equipped">▼</i>`;
   return '';
 }
-/* ------------------------------------------------------------------ the crafter (top right, above the skills) */
+/* ------------------------------------------------------------------ the Forge (top right, above the skills): the weapon crafter, as the code still calls it */
 function renderBench() {
   const S = G.S, X = G.X, B = S.bench, wd = D.WEAPONS[B.type], free = G.emptyPost() >= 0, n = G.craftSockets();
   $('shop').classList.toggle('hidden', !S.posts.length); if (!S.posts.length) { $('shop').innerHTML = ''; return; }       // locked: not shown at all
   const part = G.benchCost(), empty = B.sockets.filter(s => !s.gem).length, cost = G.makeCost();
-  const head = `<div class="shophead"><h4>Weapon crafter</h4></div>`;
+  const head = `<div class="shophead"><h4>Forge</h4></div>`;
   // sockets the tree has unlocked that this weapon did not roll: faint outlines after its own
   const lost = B.made ? '<div class="sock ghost" data-tip-text="Not rolled"></div>'.repeat(Math.max(0, n - B.sockets.length)) : '';
   const forge = `<div class="forgebar"><i data-forge></i><span>Forging</span></div>`;
-  const make = cls => `<button class="${cls}" data-act="make" data-cost="${cost}" data-cur="gold" data-tip-text="${B.made ? 'A new weapon: type and sockets' : ''}">${B.made ? 'New' : 'Make'} · ${ci('gold')}${fmt(cost)}</button>`;
+  const make = cls => `<button class="${cls}" data-act="make" data-cost="${cost}" data-cur="gold" data-tip-text="${B.made ? 'A new weapon: type and sockets' : ''}">${B.made ? 'New' : 'Forge weapon'} · ${ci('gold')}${fmt(cost)}</button>`;
   // nothing on the bench: the anvil, and Make
   if (!B.made) { $('shop').innerHTML = head + `<div class="bench blank${S.forge ? ' forging' : ''}"><div class="pic"><span class="anvil"></span></div><div class="what"><span class="dim">${S.forge ? '' : 'No weapon'}</span></div>${S.forge ? forge : make('big')}</div>`; return; }
   $('shop').innerHTML = head + `
@@ -151,22 +157,33 @@ function renderBench() {
       ${G.treeVal('uReroll') && !S.forge ? `<div class="bbtns${glow('rerolls')}"><span class="dim">Reroll</span>
         <button class="small" data-act="bench-type" data-cost="${part}" data-cur="gold" data-tip-text="New type; sockets stay">Type · ${ci('gold')}${fmt(part)}</button>
         ${n ? `<button class="small" data-act="bench-socks" data-cost="${part}" data-cur="gold" data-tip-text="New socket colours; type stays">Sockets · ${ci('gold')}${fmt(part)}</button>` : ''}</div>` : ''}
-      ${S.forge ? forge : `<div class="bmake"><button class="big" data-act="equip" ${free ? '' : 'data-off'} data-tip-text="${free ? (empty ? plural(empty, 'empty socket') + ' will be lost' : '') : 'Needs an empty weapon slot'}">Equip</button>${make('remake')}</div>`}
+      ${S.forge ? forge : `<div class="bmake"><button class="big${free ? '' : ' off'}" data-act="equip" data-tip-text="${free ? (empty ? plural(empty, 'empty socket') + ' will be lost' : '') : 'No free weapon slot. Scrap one weapon first (the ✕ on its card).'}">Equip</button>${make('remake')}</div>`}
       ${G.hasSpare() && !S.forge ? `<button class="small swap${glow('bench2')}" data-act="bench-swap" data-tip-text="${S.spare ? esc(G.unitName(S.spare)) + ' is set aside' : 'Set this weapon aside'}">⇄ ${S.spare ? `Swap with the ${esc(G.unitName(S.spare))} set aside` : 'Set aside and start another'}</button>` : ''}
     </div>`;
 }
 
 /* ------------------------------------------------------------------ skills and the forge (right) */
+/* A craft that takes an affix off a skill or puts one on shows it happen: the one removed turns red, is struck through
+   and closes up; a new one slides in lit gold (every one of them, when the affixes are rerolled). The panel is drawn
+   again while that plays, so what is playing is kept here, with when it began. */
+const AFF_FX = 0.7;
+function affFx(gem, before) {
+  const gone = before.findIndex(a => !gem.aff.includes(a)), fresh = gem.aff.map((a, k) => before.includes(a) ? -1 : k).filter(k => k >= 0);
+  const all = fresh.length && fresh.length === gem.aff.length && before.length === gem.aff.length;      // rerolled: the old ones are not shown going, only the new ones coming
+  UI.affFx = { gem: gem.id, at: performance.now() / 1000, in: fresh, out: gone >= 0 && !all ? { i: gone, a: before[gone] } : null };
+}
 function detailHTML() {
   const at = UI.sel != null && G.find(UI.sel);
   if (!at) return '';
   const gem = at.gem, sk = D.SKILL[gem.sk], col = D.COLORS[sk.c];
+  const fxT = UI.affFx && UI.affFx.gem === gem.id ? performance.now() / 1000 - UI.affFx.at : 99, fx = fxT < AFF_FX ? UI.affFx : null, fxDelay = ` style="animation-delay:-${Math.max(0, fxT).toFixed(2)}s"`;
+  const ghost = k => fx && fx.out && fx.out.i === k ? `<div class="aff affout"${fxDelay}>${tierTag(gem, fx.out.a)}<span class="txt">${affText(gem, fx.out.a)}</span></div>` : '';
   // the primary affix is flat; each secondary affix shows the tier it rolled
   let h = `<div id="detail"><div class="name">${gemHTML(gem)}<b class="t-${sk.c}">${sk.name}</b><span class="tname t${D.tier(gem.lvl)}">Tier ${D.tier(gem.lvl)}</span></div>
     ${sk.plain ? '' : `<div class="aff prim"><span class="txt">${skillText(gem)}</span></div>`}`;
-  const one = G.craftUnlocked('one') && D.CRAFT_BY.one.can(gem);
-  gem.aff.forEach((a, k) => { h += `<div class="aff">${tierTag(gem, a)}<span class="txt">${affText(gem, a)}</span>${one ? `<button class="small repl${glow('craft-one')}" data-act="craft-one" data-i="${k}" data-cost="${G.craftCost('one', gem)}" data-cur="gold" data-tip-text="Replace this affix">Replace · ${ci('gold')}${fmt(G.craftCost('one', gem))}</button>` : ''}</div>`; });
-  if (!gem.aff.length) h += `<div class="aff none"><span class="txt dim">No secondary affix</span></div>`;
+  gem.aff.forEach((a, k) => { h += ghost(k) + `<div class="aff${fx && fx.in.includes(k) ? ' affin' : ''}"${fx && fx.in.includes(k) ? fxDelay : ''}>${tierTag(gem, a)}<span class="txt">${affText(gem, a)}</span></div>`; });
+  h += ghost(gem.aff.length);      // (the last one was the one removed)
+  if (!gem.aff.length && !(fx && fx.out)) h += `<div class="aff none"><span class="txt dim">No secondary affix</span></div>`;
   // every way to craft it that is unlocked: one the prestige tree has not given yet is not shown at all
   h += `<div class="forge">`;
   for (const c of D.CRAFTS) {
@@ -176,7 +193,7 @@ function detailHTML() {
   }
   h += `
   </div>${NOTES[gem.sk] ? `<div class="hint">${NOTES[gem.sk]()}</div>` : ''}
-  <div class="hint keys"><kbd>Right-click</kbd> ${at.bag != null ? 'socket' : 'remove'} &nbsp; <kbd>Shift</kbd> salvage ${ci('gold')}${fmt(G.salvageValue(gem))} &nbsp; <kbd>Alt</kbd> ${gem.lock ? 'unlock' : 'lock'}</div></div>`;
+  <div class="hint keys"><kbd>Right-click</kbd> ${at.bag != null ? 'socket' : 'remove'} &nbsp; <kbd>Shift-click</kbd> salvage ${ci('gold')}${fmt(G.salvageValue(gem))} &nbsp; <kbd>Alt-click</kbd> ${gem.lock ? 'unlock' : 'lock'}</div></div>`;
   return h;
 }
 /* The Skills tab is one of two things. With nothing selected it is the bag: a row for each skill (its primary
@@ -186,10 +203,10 @@ function renderSkills() {
   const S = G.S, el = $('tab-skills'), at = UI.sel != null && G.find(UI.sel), old = $('bag');
   if (old) UI.bagScroll = old.scrollTop;
   if (at) {
-    el.innerHTML = `<div class="baghead"><button class="small" data-act="back">◀ All skills</button><span></span><span class="dim">${S.bag.length} in the bag</span></div>` + detailHTML();
+    el.innerHTML = `<div class="baghead"><button class="backbtn" data-act="back">◀ All skills</button></div>` + detailHTML();
     return;
   }
-  if (!G.skillsOn()) { el.innerHTML = ''; return; }       // locked: not shown at all (its tab is hidden too: see lockTabs)
+  if (!G.skillsOn()) { el.innerHTML = ''; return; }       // locked: not shown at all (see lockSkills)
   const now = G.dropping(), full = !now.some(k => G.hasRoom(k.id));
   let h = `<div class="baghead"><h4>Skills</h4><span>${S.bag.length}${full ? ' · <b class="bad">full</b>' : ''}</span><button class="small" data-act="salvage-loose">Salvage all</button></div>
     ${G.treeVal('uBuy') ? `<button class="buyskill${glow('market')}" data-act="buy-skill" ${full ? 'data-off' : `data-cost="${G.buyCost()}" data-cur="gold"`} data-tip-text="${full ? 'Bag full' : ''}">Buy a skill · ${ci('gold')}${fmt(G.buyCost())}</button>` : ''}
@@ -201,7 +218,7 @@ function renderSkills() {
     for (let i = 0; i < n; i++) h += `<div class="slot">${mine[i] ? gemHTML(mine[i]) : ''}</div>`;
     h += '</div>';
   }
-  el.innerHTML = h + `</div><div class="hint keys"><kbd>Click</kbd> craft &nbsp; <kbd>Right-click</kbd> socket &nbsp; <kbd>Shift</kbd> salvage &nbsp; <kbd>Alt</kbd> lock</div>`;
+  el.innerHTML = h + `</div><div class="hint keys"><kbd>Click</kbd> craft &nbsp; <kbd>Right-click</kbd> socket<br><kbd>Shift-click</kbd> salvage &nbsp; <kbd>Alt-click</kbd> lock</div>`;
   $('bag').scrollTop = UI.bagScroll || 0;
 }
 /* the Prestige window: a popup of its own, opened from beside the level. It holds the tree. During a run the tree
@@ -211,7 +228,7 @@ function renderSkills() {
 function nodeTip(n) {
   const S = G.S, E = D.TREE_EFF[n.eff], held = G.has(n.id);
   let h = `<div class="tn" style="color:${E.col}">${E.name}</div><div class="tp">${E.text(n.amt)}</div>`;
-  if (held) return h + (S.alloc && G.canRemove(n.id) ? '<div class="tk">Click to undo</div>' : '');
+  if (held) return h + (!S.alloc ? '' : G.canRemove(n.id) ? `<div class="tk">Unspec for ${ci('core')}${fmt(G.nodeCost(n.id))}</div>` : '<div class="tk">Other nodes hang from it</div>');
   const c = G.nodeCost(n.id), poor = c - G.cores();
   h += `<div class="tc${poor > 0 ? ' poor' : ''}">${ci('core')}${fmt(c)}</div>`;
   if (!S.alloc) return h;
@@ -225,24 +242,31 @@ function nodeTip(n) {
    each quarter's name on it. */
 const HEXPTS = r => [0, 1, 2, 3, 4, 5].map(i => (Math.cos(Math.PI / 3 * i + Math.PI / 6) * r).toFixed(1) + ',' + (Math.sin(Math.PI / 3 * i + Math.PI / 6) * r).toFixed(1)).join(' ');
 const nodeShape = n => !n.big ? 'bead' : /^(post|sock)2?$/.test(n.eff) || n.eff === 'bench2' ? 'hub' : /^u[A-Z]/.test(n.eff) ? 'key' : 'notable';      // the block of nine round the start is all squares
+/* When the page opens the tree ripples out from its centre, twice: a faint ring spreads from the first node and each
+   path and node comes up softly as it passes, then a second ring follows and they brighten a little once more. It is
+   slow and quiet. The page is drawn again while that plays (and it must not start over), so every delay is counted
+   from when the page opened. */
+const RIPPLE = { spread: 1.5, reach: 640, fade: 1.3, gap: 0.62 };      // seconds for a ripple to get from the centre to `reach` (the tree's far edge); how long a node's two swells take; and how far the second ripple is behind the first
 function treeSVG() {
   const at = id => id === 'start' ? { x: 0, y: 0 } : D.NODE[id];
-  let h = `<svg id="tree" viewBox="-615 -372 1230 744" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+  const rt = performance.now() / 1000 - (UI.presAt == null ? -99 : UI.presAt), rip = rt < RIPPLE.spread + RIPPLE.fade + 0.4, ring = RIPPLE.spread * 740 / RIPPLE.reach;      // (a ring is drawn out to 740, at the ripple's own pace)
+  const rd = (x, y) => rip ? `animation-delay:${(Math.hypot(x, y) / RIPPLE.reach * RIPPLE.spread - rt).toFixed(2)}s;` : '';
+  let h = `<svg id="tree"${rip ? ' class="ripple"' : ''} viewBox="-615 -372 1230 744" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
     <defs>
       <radialGradient id="gorb" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset=".45" stop-color="#fff" stop-opacity=".08"/><stop offset="1" stop-color="#000" stop-opacity=".28"/></radialGradient>
     </defs>
     <g class="bg">
       <text class="region" x="-575" y="-318" style="--c:#ff9a4a">ARSENAL</text><text class="region" x="575" y="-318" text-anchor="end" style="--c:#b48cff">WORKSHOP</text>
       <text class="region" x="0" y="-348" text-anchor="middle" style="--c:#5aa8ff">CONTROL</text><text class="region" x="0" y="360" text-anchor="middle" style="--c:#ff5a48">ATTRITION</text>
-    </g><g class="links">`;
+    </g>${rip ? [0.12, 0.12 + RIPPLE.gap].map(d => `<circle class="ripwave" r="100" style="animation-duration:${ring.toFixed(2)}s;animation-delay:${(d - rt).toFixed(2)}s"/>`).join('') : ''}<g class="links">`;
   for (const n of D.TREE) for (const l of n.links) {
     const a = at(l), on = G.has(n.id) && G.has(l), next = !on && ((G.has(l) && G.canAllocate(n.id)) || (G.has(n.id) && l !== 'start' && G.canAllocate(l)));
-    h += `<line class="link${on ? ' on' : next ? ' next' : ''}" style="--c:${D.TREE_EFF[n.eff].col}" x1="${a.x}" y1="${a.y}" x2="${n.x}" y2="${n.y}"/>`;
+    h += `<line class="link${on ? ' on' : next ? ' next' : ''}" style="--c:${D.TREE_EFF[n.eff].col};${rd((a.x + n.x) / 2, (a.y + n.y) / 2)}" x1="${a.x}" y1="${a.y}" x2="${n.x}" y2="${n.y}"/>`;
   }
   h += `</g><g class="startnode"><circle r="35" class="halo"/></g>`;
   for (const n of D.TREE) {
     const E = D.TREE_EFF[n.eff], held = G.has(n.id), edge = !held && G.touches(n.id), open = edge && G.canAllocate(n.id), shape = nodeShape(n), R = shape === 'hub' ? 27 : n.big ? 21 : 7.5;      // a hub is the biggest thing on the tree: it matters most
-    h += `<g class="node ${shape}${n.eff === 'tier' ? ' tier' : ''}${n.big ? ' big' : ''}${held ? ' held' : open ? ' open' : edge ? ' edge locked' : ' locked'}" style="--c:${E.col}" data-act="node" data-node="${n.id}" transform="translate(${n.x} ${n.y})"><circle class="hit" r="${R + 7}"/>`;
+    h += `<g class="node ${shape}${n.eff === 'tier' ? ' tier' : ''}${n.big ? ' big' : ''}${held ? ' held' : open ? ' open' : edge ? ' edge locked' : ' locked'}" style="--c:${E.col};${rd(n.x, n.y)}" data-act="node" data-node="${n.id}" transform="translate(${n.x} ${n.y})"><circle class="hit" r="${R + 7}"/>`;
     if (shape === 'bead' && n.eff === 'tier') h += `<rect class="ring" x="-7.5" y="-7.5" width="15" height="15" rx="1.5" transform="rotate(45)"/>${held ? '' : '<circle class="pip" r="2.6"/>'}`;      // a skill tier: a diamond, to be found at a glance
     else if (shape === 'bead') h += `<circle class="ring" r="${R}"/>${held ? `<circle class="shine" r="${R}"/>` : '<circle class="pip" r="2.6"/>'}`;
     else {
@@ -264,61 +288,14 @@ function renderCores() {
   if (S.alloc) h += `<span class="pnote"></span>
       <div class="pbtns"><button class="big" data-act="begin-run">Begin run ${S.runs + 1}</button></div>`;
   h += '</div>' + treeSVG();
-  // what is held, in a line: the two that matter most, then each notable by name; and what the shapes mean
-  h += `<div class="treesum">`;
-  h += `<span class="none key"><svg viewBox="-12 -12 24 24"><polygon points="${HEXPTS(10)}"/></svg>hub <svg viewBox="-12 -12 24 24"><rect x="-9" y="-9" width="18" height="18" rx="4"/></svg>unlock <svg viewBox="-12 -12 24 24"><circle r="9.5"/><circle r="5.5"/></svg>notable <svg viewBox="-12 -12 24 24"><rect x="-6.5" y="-6.5" width="13" height="13" transform="rotate(45)" style="stroke:#ffd98a"/></svg>skill tier</span></div>`;
   const box = $('pres-box'); box.innerHTML = h;
   $('prestige').classList.toggle('alloc', !!S.alloc);
-}
-function renderGuide() {
-  const S = G.S, t = S.stats.time, hrs = Math.floor(t / 3600), min = Math.floor(t % 3600 / 60);
-  $('tab-guide').innerHTML = `<div class="guide">
-    <h4>How it works</h4>
-    <p><b>Cursor.</b> Click or hold on an enemy. It hits everything its circle touches.</p>
-    <p><b>Life</b> is full at the start of a level and must last all ten fights. Lose on a boss: the level restarts. Lose elsewhere: back a level.</p>
-    <p><b>Gold.</b> A fight pays ×${D.FIRST_GOLD.first} the first time it is won in a run, ×${D.FIRST_GOLD.again} after.</p>
-    <p><b>Overkill carries.</b> What a blow has left over when its enemy dies goes on to the nearest one: hammer 3 more enemies, axe 4, sword and staff 2, bow, dagger and cursor 1.</p>
-    <p><b>Prestige.</b> Every level a run clears pays cores, deeper levels more. Prestige ends the run, banks them and opens the tree, where they buy nodes for good.</p>
-    <p><b>Weapons</b> are made at the crafter and fight by themselves. Skills go in their sockets before they are made; after that nothing changes. Scrap one (✕) to free its slot.</p>
-    <p><b>Skills</b> have one effect and one to three stats. Each stat has a tier (T1 up to the skill's own). A skill's tier, 1 to 5, is luck; tier nodes on the prestige tree raise the odds, and T5 needs ten. Click a skill to craft it; right-click to socket it.</p>
-    <table>
-      <tr><td>Levels ending 1, 6</td><td>Three Elders</td></tr>
-      <tr><td>2, 3, 7, 8</td><td>One Elder</td></tr>
-      <tr><td>4, 9</td><td>Elder and warband</td></tr>
-      <tr><td>5, 0</td><td>Act boss and guards</td></tr>
-    </table>
-    <table>
-      <tr><td>Hammer</td><td>Splash 40%</td></tr>
-      <tr><td>Staff</td><td>Arc 50%</td></tr>
-      <tr><td>Bow</td><td>Pierce 50%</td></tr>
-      <tr><td>Axe, sword, dagger</td><td>One target</td></tr>
-    </table>
-    <table>
-      <tr><td class="t-r">Might</td><td>Twin Strike, Shockwave, Deathblow</td></tr>
-      <tr><td class="t-b">Hex</td><td>Frostbite, Concuss, Shatter, Ignite</td></tr>
-      <tr><td class="t-g">Aid</td><td>Damage, Attack Speed and Defense Aura (auras do not stack)</td></tr>
-    </table>
-    <p>One of each skill to a weapon. Plain Might, Hex and Aid: any number.</p>
-    <table>
-      <tr><td class="st-chill">Chilled</td><td>Attacks ${D.CHILL}% slower</td></tr>
-      <tr><td class="st-stun">Stunned</td><td>Cannot attack</td></tr>
-      <tr><td class="st-brit">Brittle</td><td>+${D.BRITTLE.per}% damage taken per stack, up to ${D.BRITTLE.max}</td></tr>
-      <tr><td class="st-burn">Burning</td><td>Damage over time</td></tr>
-    </table>
-    <p><kbd>←</kbd> <kbd>→</kbd> level · <kbd>Shift</kbd>+<kbd>→</kbd> deepest · <kbd>Esc</kbd> back</p>
-    <h4 style="margin-top:12px">So far</h4>
-    <table>
-      <tr><td>Deepest level</td><td>${S.maxLevel}</td></tr><tr><td>Kills</td><td>${fmt(S.stats.kills)} (${fmt(S.stats.bosses)} bosses)</td></tr>
-      <tr><td>Clicks</td><td>${fmt(S.stats.clicks)}</td></tr><tr><td>Gold earned</td><td>${fmt(S.stats.gold)}</td></tr>
-      <tr><td>Skills found</td><td>${fmt(S.stats.drops)}</td></tr><tr><td>Fights lost</td><td>${fmt(S.stats.fails)}</td></tr>
-      <tr><td>Time played</td><td>${hrs}h ${min}m</td></tr>
-    </table></div>`;
 }
 UI.render = function () {
   if (!UI.dirty || UI.down || UI.dragging != null) return;
   UI.dirty = false;
   if (UI.sel != null && !G.find(UI.sel)) UI.sel = null;
-  lockTabs(); renderLine(); renderBench(); renderSkills(); renderCores(); if (UI.tab === 'guide' && G.skillsOn()) renderGuide();
+  lockSkills(); renderLine(); renderBench(); renderSkills(); renderCores();
   UI.fresh.clear(); retip();
   lastCosts = ''; patch(true);
 };
@@ -390,7 +367,6 @@ function patch(force) {
   const have = { gold: S.gold };
   for (const b of document.querySelectorAll('[data-cost]')) b.disabled = b.hasAttribute('data-off') || have[b.dataset.cur] < +b.dataset.cost;
   for (const b of document.querySelectorAll('button[data-off]')) b.disabled = true;
-  const fresh = S.bag.reduce((k, g) => k + (g.nw ? 1 : 0), 0), bb = $('bag-badge'); setText(bb, fresh ? fresh + ' new' : S.bag.length ? String(S.bag.length) : ''); bb.classList.toggle('new', fresh > 0);
   const earn = G.runCores(), can = G.canPrestige(), pb = $('btn-prestige'), key = (S.alloc ? 'a' : can ? 'y' : 'e') + earn + ':' + G.cores();
   if (pb.dataset.k !== key) {
     // it glows once this run has earned enough to buy something the bank alone could not
@@ -420,7 +396,8 @@ function interlude(ev) {
     <span class="inext">${on ? `Level ${ev.next} · ${esc(D.act(ev.next).name)}` : 'Again'}</span><div class="ibar"><i></i></div></div>`;
   el.classList.remove('hidden'); clearTimeout(interlude.t); interlude.t = setTimeout(() => el.classList.add('hidden'), ev.secs * 1000);
 }
-function banner(title, sub, color) { $('banner').innerHTML = `<div style="color:${color}">${title}<small>${sub}</small></div>`; }
+/* the words across the arena: a run beginning, or a fight lost. `secs` is how long they are up (a loss stays longer: it has something to tell you) */
+function banner(title, sub, color, secs) { $('banner').innerHTML = `<div style="color:${color}${secs ? `;animation-duration:${secs}s` : ''}">${title}<small>${sub}</small></div>`; }
 /* a skill's tooltip: its name, what it does, and its secondary affixes, each with its tier in front */
 function gemTip(gem) {
   const sk = D.SKILL[gem.sk];
@@ -453,7 +430,7 @@ function tipFor(el, ev) {
 function retip() { if (!mouse) return hideTip(); tipFor(document.elementFromPoint(mouse.clientX, mouse.clientY), mouse); }
 function modal(html) { const m = $('modal'); m.innerHTML = `<div class="box">${html}</div>`; m.classList.remove('hidden'); }
 function closeModal() { $('modal').classList.add('hidden'); }
-function showPrestige(on) { if (!on && G.S.alloc) return; UI.pres = !!on; $('prestige').classList.toggle('hidden', !on); if (on) renderCores(); hideTip(); }
+function showPrestige(on) { if (!on && G.S.alloc) return; if (on && !UI.pres) UI.presAt = performance.now() / 1000; UI.pres = !!on; $('prestige').classList.toggle('hidden', !on); if (on) renderCores(); hideTip(); }
 UI.welcome = function () {
   modal(`<h3>Smeltworks Idle</h3>
     <p><b>Click enemies</b> to strike them. Hold to keep striking.</p>
@@ -486,7 +463,7 @@ UI.onEvent = function (ev) {
   switch (ev.t) {
     // the fight is quiet: soft sounds, and not one for every blow of a full line
     case 'hit': if (ev.who < 0) AU.play(ev.crit ? 'tapCrit' : 'tap', 0.05); else AU.play(ev.crit ? 'softCrit' : 'soft', ev.crit ? 0.3 : 0.22); break;
-    case 'hurt': { AU.play(ev.slam ? 'ouchBig' : 'ouch', 0.3); const c = document.querySelector('.lifebar'); c.classList.remove('hurt'); void c.offsetWidth; c.classList.add('hurt'); break; }
+    case 'hurt': { AU.play(ev.slam ? 'ouchBig' : 'ouch', 0.18); const c = document.querySelector('.lifebar'); c.classList.remove('hurt'); void c.offsetWidth; c.classList.add('hurt'); break; }
     case 'kill': AU.play(ev.boss ? 'win' : 'fall', 0.15); AU.play('chink', 0.25); break;
     case 'spawn': if (G.F.enc.actBoss) AU.play('boss'); break;
     case 'nova': AU.play('boom', 0.4); break;
@@ -502,7 +479,7 @@ UI.onEvent = function (ev) {
     case 'prestige': AU.play('master'); $('interlude').classList.add('hidden'); UI.sel = null; UI.fresh.clear(); UI.glows = {}; for (const el of document.querySelectorAll('.newglow')) el.classList.remove('newglow'); showPrestige(true); break;
     case 'run': UI.pres = false; $('prestige').classList.add('hidden'); banner('Run ' + (G.S.runs + 1), '', 'var(--hot)'); AU.play('level'); UI.dirty = true; UI.render(); flashNew(); break;
     case 'goto': $('interlude').classList.add('hidden'); break;
-    case 'fail': banner(ev.boss ? 'Overrun' : 'Driven back', ev.back ? 'Back a level' : 'Level restarts', 'var(--bad)'); AU.play('death'); break;
+    case 'fail': banner(ev.boss ? 'Overrun' : 'Driven back', ev.back ? 'Back to level ' + G.S.level : 'Level ' + G.S.level + ' restarts', 'var(--bad)', FAIL_SECS); AU.play('death'); break;
   }
   AR.onEvent(ev);
 };
@@ -522,14 +499,14 @@ function act(name, b, ev) {
       if (G.S.gold < G.makeCost()) { ok = false; toast('Not enough gold'); break; }
       ok = G.make();
       break;
-    case 'equip':     // free and at once, empty sockets or not: the button's own tip says what an empty one costs
-      if (G.emptyPost() < 0) { ok = false; toast('Needs an empty weapon slot'); break; }
+    case 'equip':     // free and at once, empty sockets or not: the button's own tip says what an empty one costs. With no free slot it is greyed out
+      // but still answers a click and a hover (a truly disabled button does neither), so the toast and the tooltip can say what to do
+      if (G.emptyPost() < 0) { ok = false; toast('Scrap one weapon first (✕)'); break; }
       ok = G.equip();
       break;
     case 'sell': ok = G.sell(+d.post); if (ok) AU.play('salvage'); break;
     case 'upgrade': ok = G.upgrade(+d.post); if (ok) { const p = +d.post; UI.upAt[G.S.posts[p].unit.id] = performance.now() / 1000; setTimeout(() => tink(`#line .card[data-post="${p}"] .pic`), 40); } break;      // once the line has been drawn again
-    case 'craft': ok = G.craft(d.kind, UI.sel); if (ok) AU.play(d.kind === 'strip' ? 'forge' : 'master'); break;
-    case 'craft-one': ok = G.craft('one', UI.sel, +d.i); if (ok) AU.play('master'); break;
+    case 'craft': { const at = G.find(UI.sel), before = at ? at.gem.aff.slice() : []; ok = G.craft(d.kind, UI.sel); if (ok) { affFx(at.gem, before); AU.play(d.kind === 'strip' ? 'forge' : 'master'); setTimeout(() => { UI.dirty = true; }, AFF_FX * 1000 + 30); } break; }      // (drawn once more when it has played, to clear it away)
     case 'bench-swap': ok = G.swapBench(); if (ok) AU.play('click'); break;
     case 'salvage-loose': {
       const loose = S.bag.filter(g => !g.lock);
@@ -550,7 +527,7 @@ function act(name, b, ev) {
     case 'node': {
       const id = d.node;
       if (!S.alloc) { ok = false; toast('Prestige to change the tree'); break; }
-      if (G.has(id)) { ok = G.unallocate(id); if (ok) AU.play('click'); }       // only one bought since the tree opened comes back
+      if (G.has(id)) { ok = G.unallocate(id); if (ok) AU.play('click'); }       // any node comes back, for its price, unless others hang from it
       else { ok = G.allocate(id); if (ok) AU.play(D.NODE[id].big ? 'nodeBig' : 'node'); else toast(!G.touches(id) ? 'Not connected' : `${fmt(G.nodeCost(id) - G.cores())} cores short`); }
       break;
     }
@@ -582,17 +559,14 @@ function useGem(id) {
   else if (G.unsocket(id)) AU.play('click');
 }
 /* left click on a skill: its crafting, in place of the bag (again, or Back, to close it) */
-function craftGem(id) { UI.sel = UI.sel === id ? null : id; UI.tab = 'skills'; showTab(); UI.dirty = true; AU.play('click'); }
+function craftGem(id) { UI.sel = UI.sel === id ? null : id; UI.dirty = true; AU.play('click'); }
 function clickGem(id, ev) {
   if (ev.altKey) { G.lock(id); UI.dirty = true; return; }
   if (ev.shiftKey) return shiftSalvage(id);
   craftGem(id);
 }
-/* until there are skills that pane has no tabs at all: no Skills, and no Guide either */
-function lockTabs() {
-  const on = G.skillsOn(), nav = $('tabs');
-  if (nav.classList.contains('hidden') !== !on) { nav.classList.toggle('hidden', !on); showTab(); }
-}
+/* until there are skills, the skills' part of that pane is not there at all */
+function lockSkills() { $('tab-skills').classList.toggle('hidden', !G.skillsOn()); }
 /* What a run has for the first time ever is pointed out: a new pane flashes, and it, or a new button, then glows
    for a good while (GLOW_SECS). glow(key) is what a re-drawn element puts in its class to carry the glow on. */
 const GLOW_SECS = 45;
@@ -603,19 +577,13 @@ function flashNew() {
   for (const k of fresh) { S.unl[k] = 1; UI.glows[k] = t; }
   const panes = [];
   if (fresh.includes('troops')) panes.push($('line'), $('shop'));
-  if (fresh.includes('skills')) { panes.push($('tab-skills'), $('tabs')); UI.tab = 'skills'; }
-  lockTabs(); showTab();
+  if (fresh.includes('skills')) panes.push($('tab-skills'));
+  lockSkills();
   for (const el of panes) {
     el.classList.remove('unlockflash', 'newglow'); void el.offsetWidth; el.classList.add('unlockflash', 'newglow');
     setTimeout(() => el.classList.remove('unlockflash'), 2600); setTimeout(() => el.classList.remove('newglow'), GLOW_SECS * 1000);
   }
   if (fresh.length) { UI.dirty = true; setTimeout(() => { UI.dirty = true; }, GLOW_SECS * 1000 + 100); }
-}
-function showTab() {
-  for (const b of document.querySelectorAll('#tabs button')) b.classList.toggle('on', b.dataset.tab === UI.tab);
-  const on = G.skillsOn();
-  for (const t of ['skills', 'guide']) $('tab-' + t).classList.toggle('hidden', !on || t !== UI.tab);
-  if (on && UI.tab === 'guide') renderGuide();
 }
 
 UI.bind = function () {
@@ -630,7 +598,6 @@ UI.bind = function () {
     if (t.id === 'modal') return closeModal();
     if (t.id === 'prestige') return showPrestige(false);
     const b = t.closest('[data-act]'); if (b) { if (!b.disabled) act(b.dataset.act, b, ev); return; }
-    const tab = t.closest('#tabs button'); if (tab) { UI.tab = tab.dataset.tab; showTab(); AU.play('click'); return; }
     const sock = t.closest('[data-sock]'); if (sock) return clickSock(sock, ev);
     const gem = t.closest('[data-gem]'); if (gem) return clickGem(+gem.dataset.gem, ev);
   });
@@ -696,6 +663,6 @@ UI.bind = function () {
     else if (ev.key === 'ArrowLeft') G.goto(G.S.level - 1);
     else if (ev.key === 'ArrowRight') G.goto(ev.shiftKey ? G.S.maxLevel : G.S.level + 1);
   });
-  showTab();
+  lockSkills();
 };
 })();

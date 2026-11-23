@@ -1,7 +1,7 @@
 # Smeltworks Idle
 
 An idle game in the Smeltworks world. You begin with the cursor and nothing else. Every level a run clears pays
-**cores**; prestige banks them, and they buy nodes on the prestige tree, for good. The tree gives first a weapon,
+**cores**; prestige banks them, and they buy nodes on the prestige tree. The tree gives first a weapon,
 then its first socket and skills with it, or the means to upgrade it. You make weapons that strike by
 themselves out of skills, which drop from what you kill and which gold buys. More weapons, more sockets and
 higher tiers of skill are all on the tree, each dearer than the last: any run pays something towards them, a
@@ -69,11 +69,11 @@ It is a separate game from `../smeltworks` and shares nothing with it at run tim
   | Bow | Pierces everything in its line for 50% |
   | Axe, sword, dagger | One target, and about a quarter more damage to it |
 
-- **The crafter**, at the top of the right-hand pane, is an anvil and a bench. **Make** costs gold and puts a new
+- **The Forge**, at the top of the right-hand pane, is an anvil and a bench (it is "the crafter" in what follows, and in the code). **Forge weapon** costs gold and puts a new
   weapon on the bench: a random type, and a roll of sockets: 30% of the time every socket the tree has unlocked (up to six), 55% one short, 15% two short, never fewer than one. Sockets it missed show as faint outlines. Set skills in its
   sockets; they go in and out freely. With the tree's **Rerolls** node you can reroll its **type** alone or its
   **sockets** alone (their colours, never how many: a weapon that rolled short stays short), for gold, with the same second and a half at the anvil and the same three blows as a new weapon, and the same ring and shine when it is done. Either costs 1.6 times a new weapon (8 kills' gold against 5), since it keeps the half you liked; the whole weapon again is **New** (the same price as Make: a different weapon,
-  and the skills in the old one back in your bag). **Equip** is free, needs an empty weapon slot, and is final: the
+  and the skills in the old one back in your bag). **Equip** is free, needs an empty weapon slot (with none, the button is greyed out, and its tooltip and the toast on a click both say to scrap one weapon first), and is final: the
   skills in it become its stats (each effect a tag in its colour, the secondary affixes a list underneath,
   added together), nothing in it can be reached again, and the bench is bare until you make another. To
   improve a weapon, make its successor, scrap the old one with the ✕ on its card (its skills are salvaged for
@@ -147,12 +147,11 @@ It is a separate game from `../smeltworks` and shares nothing with it at run tim
   a sixth drops, one is salvaged: one with no affix before any other (never a locked one; only an old save has
   such skills now), and otherwise the newest, which is the drop itself. A new skill glows, steadily, until the mouse has been over it. **Shift-click** salvages a skill for gold; the next one in its row slides under the pointer and its tooltip opens at once (and if the salvaged skill's crafting was open, that moves to the next one too), so a row can be read and cleared without moving the mouse.
 - **Crafting a skill.** Click a skill and the bag gives way to its crafting (Back, or Esc, or a second click, returns). Two ways
-  are always there, for gold: remove one affix, at random (which one goes is not yours to choose, and what is left keeps its tier), or reroll the affixes themselves, as many as it had. **An affix's tier cannot be rerolled**: it is what it dropped (or was added) as. Four
+  are always there, for gold: remove one affix, at random (which one goes is not yours to choose, and what is left keeps its tier), or reroll the affixes themselves, as many as it had. **An affix's tier cannot be rerolled**: it is what it dropped (or was added) as. Three
   more are unlocked by notables on the prestige tree, and are not shown until you hold them:
 
   | Unlocked by | What it does |
   | --- | --- |
-  | Fine work | Replace one affix and keep the others |
   | Second line | Add an affix to a skill with none or one |
   | Third line | Add a third affix to a skill with two |
   | Transmuting | Turn it into a different skill, keeping its tier and affixes |
@@ -162,6 +161,11 @@ It is a separate game from `../smeltworks` and shares nothing with it at run tim
   Burning flickers orange with flames climbing off it; Stunned has stars wheeling over its head; Brittle is
   cracks across it, more as the stacks build. Over its head is a row of badges in the same colours (a
   snowflake, a flame, a star, and Brittle's count of stacks).
+- **Opening the prestige page.** The tree ripples out from its centre, twice, slowly and quietly: a faint ring spreads from the first node and each path and node comes up softly as it passes, then a second ring follows and they brighten a little once more (under three seconds in all; not at all for a reader who has asked for reduced motion).
+- **Crafting shows what it did.** An affix put on a skill slides in lit gold and settles; one taken off turns red, is struck through and closes up; rerolled affixes all come in as new.
+- **Losing a fight** puts words across the arena for four and a half seconds (a run's opening words are up for two): "Driven back: Back to level 6" after an ordinary fight, "Overrun: Level 7 restarts" after a boss. It is shown on every loss, not only at the start of a run.
+- **An enemy's blow can be heard.** It was a faint low hum, lost under a line of weapons and below what small speakers play; it is a dull knock now, and a slam a heavier one.
+- **The left-hand pane.** The cursor's card and the Weapons heading stay where they are; the weapons scroll beneath them in a box of their own, which keeps its place when the pane is drawn again.
 - **Gold is for getting deeper.** A fight pays **double** its gold the first time it is won in a run, and **half** whenever it is won again: a four-fold difference, for every fight, bosses and the rest alike. The run remembers the furthest fight it has won, so going back over cleared levels, or over the first fights of a level that keeps beating you, pays half. A whole level is worth about 39 kills of gold the first time (it was 19) and under 10 when it is fought again.
 - **Gold** is shown large across the top of the right-hand pane, over the crafter and the skills it is spent on.
   It glints, and the amount floats up beside it, as gold comes in.
@@ -173,7 +177,7 @@ It is a separate game from `../smeltworks` and shares nothing with it at run tim
 - **The tree is seen only by prestiging.** Your banked cores sit beside the Prestige button; there is no way
   to open the tree during a run.
 - **Locked things are not shown.** Until you hold the first weapon node there is no Weapons heading and no crafter; until
-  weapons have a socket there are no tabs at all (no Skills, and no Guide); until their nodes are held, no reroll buttons and no Buy button.
+  weapons have a socket there is no Skills part to the right-hand pane at all (that pane has no tabs: the in-game guide is gone, and the welcome box on a first visit, the hint line under the bag and the tooltips are what explain things); until their nodes are held, no reroll buttons and no Buy button.
   The first run ever to have a pane opens with that pane **flashing**, and it, or any button that is new to
   you (rerolls, Buy, a way to craft), then **glows for 45 seconds**. The Prestige button reads plain
   "Prestige", greyed out, until it can be pressed; then **Prestige for N**, the cores this run has earned so far.
@@ -185,8 +189,7 @@ It is a separate game from `../smeltworks` and shares nothing with it at run tim
   levels 1 and 2, 2 for 3 and 4, 3 for 5 to 7, and so on, two more for every five levels (level 50 pays 21, level 90 pays 37). So
   a run to level 10 earns 23, to 20 earns 87, to 50 earns 519, to 90 about 1,650, and the same run made again pays the same
   again. Prestige banks them. **Every node has a price** and can be bought only if it touches one you hold, and
-  **what is bought is kept**: there is no respec. (A node bought by a slip can be clicked again to hand it back,
-  until the next run begins.)
+  **a node can be unspecced**: while the tree is open, click one you hold and its price returns to you (its tooltip reads "Unspec for ◆N"). Any node, whenever it was bought, one at a time, as long as everything else you hold still reaches the centre without it, so a branch comes apart from its tip inwards. There is no button that clears the whole tree.
 
   | Node | Price in cores |
   | --- | --- |
@@ -244,7 +247,7 @@ It is a separate game from `../smeltworks` and shares nothing with it at run tim
   | | Daggers +6% critical chance | Lacerate: a dagger's critical is triple |
   | | Bow pierce +14% | Heavy arrows: the line is twice as wide |
   | | Staff arc +14% | Chain: the bolt arcs to two more enemies |
-  | East, from the first socket: the other five **sockets**, and the **second bench** | Skill crafting 5% cheaper, bench rerolls 8% cheaper, skills 4% cheaper, +12% skill drops, +10% gold | The four ways to craft a skill that the tree unlocks (see Crafting a skill) |
+  | East, from the first socket: the other five **sockets**, and the **second bench** | Skill crafting 5% cheaper, bench rerolls 8% cheaper, skills 4% cheaper, +12% skill drops, +10% gold | The three ways to craft a skill that the tree unlocks (see Crafting a skill) |
   | North, up to Life and on from it | **Whetstone**: +5% weapon damage | Life: +100. Over it, Frostbitten: Chilled enemies take 15% more damage |
   | | Whetstone | No respite: an enemy can be Stunned again after 1s, not 2s |
   | | Whetstone | Aftershock: a Shockwave strikes every 4s, not 6s |
@@ -259,7 +262,7 @@ It is a separate game from `../smeltworks` and shares nothing with it at run tim
   A Head start always hangs from a Purse, here and on the bridges: a run that begins deep with no gold for a weapon cannot clear anything.
   Four bridges (gold for a weapon, a starting skill, or five levels' head start, a node; eight Purses and eight Head starts on the tree in all, so a run can begin 40 levels in) join the ends of north
   and south to the arms, and each carries one notable for the long run: two **Deep veins** (two tier points each) and two **Battle line** (+15% damage for every weapon; there are four of those on the tree in all). The second bench lets the
-  crafter set one weapon aside, skills and all, and work on another. The whole tree is 139 nodes.
+  crafter set one weapon aside, skills and all, and work on another. The whole tree is 138 nodes.
   A weapon's nodes help only that type of weapon.
 
   The tree can be changed **only when you prestige**. The **Prestige** button beside the level does it at once,
@@ -352,8 +355,7 @@ beside them in `js/data.js`.
 - Green has only the two auras, and one of each is all a line can use: a green socket beyond those is worth only
   its skill's secondary affixes. Red has two skills. Weapons still roll socket colours by their old odds.
 - Weapon nodes reward a line of one type, but the only way to get a type is to reroll the bench until it comes.
-- Once the tree is bought, about 3,860 cores, there is nothing left to spend them on.
-- There is no respec, paid or otherwise.
+- Once the tree is bought, about 3,840 cores, there is nothing left to spend them on.
 - Skills cannot be moved between weapons: a made weapon is final.
 - A made weapon cannot be moved to another slot from the page (the rules can swap two; nothing calls it).
 - Enemies stay where they spawn, and weapons cannot be told whom to attack.
