@@ -469,9 +469,9 @@ function modal(html) { const m = $('modal'); m.innerHTML = `<div class="box">${h
 /* closing a box that carries the play-data switch settles it: as it stands, on or off (and from then on it has been seen) */
 function closeModal() { const c = $('tele-on'); if (c && !$('modal').classList.contains('hidden')) SW.telemetry.setEnabled(c.checked); $('modal').classList.add('hidden'); }
 /* The play-data switch. Only on the hosted game; it starts on, and nothing is sent until a box with it in has been closed. */
-function playDataLine(bare) {      // bare: the box and its label, with no account of what is sent (the first box; Settings has it)
+function playDataLine() {      // the box and its label, and nothing more (what is sent is set out in the README)
   const T = SW.telemetry; if (!T.hosted()) return '';
-  return `<label class="teleopt"><input type="checkbox" id="tele-on" ${T.wanted() ? 'checked' : ''}><span><b>Send anonymous play data</b>${bare ? '' : `<small>How long runs last, how deep they go, which nodes you buy, what you forge, scrap, reroll and craft, and errors. No name, no address, nothing you type: only a random id for this browser. Change it in Settings (⚙).</small>`}</span></label>`;
+  return `<label class="teleopt"><input type="checkbox" id="tele-on" ${T.wanted() ? 'checked' : ''}><span><b>Send anonymous play data</b></span></label>`;
 }
 /* for a save from before there was any: the switch, once, in a box of its own */
 UI.playDataNotice = function () {
@@ -483,7 +483,7 @@ function showPrestige(on) { if (!on && G.S.alloc) return; if (on && !UI.pres) UI
 UI.welcome = function () {
   modal(`<div class="plain"><h3>Smeltworks Idle</h3>
     <p>Click and hold to attack enemies.</p>
-    <p>Complete a full level before your life runs out to gain cores, then prestige.</p>${playDataLine(true)}
+    <p>Complete a full level before your life runs out to gain cores, then prestige.</p>${playDataLine()}
     <div class="btns"><button class="big" data-act="close">Begin</button></div></div>`);
 };
 UI.offline = function (o) {
