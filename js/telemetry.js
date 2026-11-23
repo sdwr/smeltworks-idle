@@ -19,7 +19,7 @@
                     sent when a run begins after the prestige tree: what the tree holds, and what that visit changed
      run_end        { n, level, secs, kills, fails, cores, first, weapons, ups, skills, deepest, playtime,
                       counts: { forged, equipped, scrapped, reroll_type, reroll_sockets, upgrade, upgrade_ranks,
-                                craft_strip, craft_recast, craft_add, craft_third, craft_morph, market, salvage, drops } }
+                                craft_strip, craft_recast, craft_add, craft_third, craft_morph, market, salvage, drops, tailwind } }
                     sent on prestige: n is the run's number, level the deepest it reached, secs its game time
      progress       { n, from, to, secs, levels: [[level, secs], ...], fails: { level: count } }
                     how far the run has got, for the runs that never reach a prestige. It is not sent for every
@@ -145,6 +145,7 @@ T.onGame = function (ev) {
     case 'forge': count('craft_' + ev.kind); break;
     case 'upgrade': count('upgrade'); count('upgrade_ranks', ev.gain || 1); break;
     case 'bought': count('market'); break;
+    case 'tailwind': count('tailwind'); break;      // a fight waved through
     case 'salvage': count('salvage'); break;
     case 'drop': count('drops'); break;
   }

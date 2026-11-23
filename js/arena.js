@@ -44,9 +44,10 @@ function eScale(e) {
   if (SP.SHEETS[e.spr]) { const k = Math.round(big * 1.12 / Math.max(z.h, z.w * 0.8) * 4) / 4, u = Math.max(1, (sx + sy) / 2 / 5); return e.r >= 10.5 ? Math.max(1, k) : e.boss ? U.clamp(k, 1.75 * u, 2 * u) : U.clamp(k, 1.25 * u, 1.5 * u); }      // (an Elder stands a little taller than the rank and file, and no more)
   return Math.max(1, Math.round(big / z.h));
 }
-function float(x, y, txt, color, size, life) {
+let twAt = -1e9, twGold = 0;
+function float(x, y, txt, color, size, life, still) {      // (still: it stays where it is put and only fades)
   if (floats.length > 70) floats.shift();
-  floats.push({ x, y, vx: (Math.random() - 0.5) * 26, vy: -62 - Math.random() * 26, txt, color, size: size || 14, life: life || 0.9, max: life || 0.9 });
+  floats.push({ x, y, vx: still ? 0 : (Math.random() - 0.5) * 26, vy: still ? -8 : -62 - Math.random() * 26, txt, color, size: size || 14, life: life || 0.9, max: life || 0.9 });
 }
 const add = o => { if (fx.length < 90) { o.max = o.life; fx.push(o); } };
 /* Blows take time to arrive, and the rules land them in an instant, so the arena starts early. It knows when each
@@ -93,6 +94,9 @@ A.onEvent = function (ev) {
     case 'buy': case 'sell': if (ev.post != null) { born[ev.post] = ev.t === 'buy' ? t : -99; wpn[ev.post] = null; for (const q of shots) if (q.who === ev.post) q.st = 'gone'; } break;
     case 'arc': { const e = byId(ev.id); if (e) add({ k: 'bolt', x0: ev.fx, y0: ev.fy, x1: e.x, y1: e.y, seed: Math.random() * 99, life: 0.2 }); break; }
     case 'nova': { const p = holderAt(ev.who); add({ k: 'nova', x: p.x, y: p.y, life: 0.55 }); break; }
+    case 'tailwind': { const now = performance.now(); twGold = now - twAt < 900 ? twGold + ev.gold : ev.gold; twAt = now;      // large and gold, under the enemy's bar at the top. One line, and only the word: skips that come close together do not pile, and the gold shows where gold always does, by the purse
+      for (let k = floats.length - 1; k >= 0; k--) if (floats[k].tw) floats.splice(k, 1);
+      float(cx, TOP + 46, 'Tailwind', '#ffd27a', 28, 1.5, true); floats[floats.length - 1].tw = true; break; }
     case 'cull': { const e = byId(ev.id); if (e) { const s = eScale(e) * SP.size(e.spr).h; float(X_(e.x), Y_(e.y) - s * 0.55, 'culled', '#ff8a7a', 12, 0.8); } break; }
     case 'hit': {
       const e = byId(ev.id); if (!e) break;

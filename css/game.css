@@ -358,6 +358,12 @@ button.buyskill { display: block; width: 100%; margin: 0 0 8px; padding: 11px 12
 @keyframes ripglow { 0%, 100% { filter: brightness(1); } 20% { filter: brightness(1.32); } 46% { filter: brightness(1); } 68% { filter: brightness(1.2); } }
 #tree .ripwave { fill: none; stroke: #ffd98a; stroke-width: 1.2; vector-effect: non-scaling-stroke; transform-origin: 0 0; pointer-events: none; animation: ripwave 1.7s linear both; }
 @keyframes ripwave { 0% { transform: scale(0); opacity: 0; } 8% { opacity: .32; } 60% { opacity: .16; } 100% { transform: scale(7.4); opacity: 0; } }
+/* the inner tree's ring: it goes out as far as that tree does and no further */
+#tree .ripwave.mid { animation-name: ripwavemid; }
+@keyframes ripwavemid { 0% { transform: scale(0); opacity: 0; } 10% { opacity: .32; } 60% { opacity: .18; } 100% { transform: scale(2.7); opacity: 0; } }
+/* what was already on show when a wider tree is revealed stays as it is: no fading out and in again, only the ripple's glow as it passes */
+#tree.ripple .node.kept, #tree.ripple .link.kept { animation: ripglow 1.3s ease-in-out backwards; }
+#prestige.alloc #tree.ripple .link.next.kept { animation: linkflow 1.1s linear infinite; }
 @media (prefers-reduced-motion: reduce) { #tree.ripple .node, #tree.ripple .link, #tree.ripple .region, #tree.ripple.one .node, #tree.ripple.one .link, #tree.ripple .node.held, #tree.ripple .link.on { animation: none; } #tree .ripwave { display: none; } }
 #tree .link { stroke: #2a2534; stroke-width: 3; stroke-linecap: round; }
 #tree .link.next { stroke: var(--c); stroke-opacity: .55; stroke-dasharray: 3 6; }
@@ -403,6 +409,13 @@ button.buyskill { display: block; width: 100%; margin: 0 0 8px; padding: 11px 12
 #modal .box { width: min(520px, 92vw); background: var(--panel); border: 1px solid var(--line2); border-radius: 6px; padding: 18px 20px; box-shadow: 0 20px 60px rgba(0,0,0,.8); }
 #modal h3 { margin: 0 0 8px; font: 700 20px var(--serif); color: var(--hot); }
 #modal p { color: var(--dim); line-height: 1.5; margin: 6px 0; } #modal p b { color: var(--text); }
+/* patch notes: a heading for each, and its lines */
+#modal h3.sub { margin-top: 16px; font-size: 17px; }
+#modal .notes { max-height: 46vh; overflow-y: auto; margin: 4px 0 10px; text-align: left; }
+#modal .notes h4 { margin: 12px 0 4px; font: 600 14px var(--sans, sans-serif); color: var(--text); letter-spacing: .02em; }
+#modal .notes h4:first-child { margin-top: 2px; }
+#modal .notes ul { margin: 0; padding-left: 20px; color: var(--dim); line-height: 1.5; }
+#modal .notes li { margin: 3px 0; }
 /* the play-data switch, in the welcome box, its own notice, and Settings */
 #modal .teleopt { display: flex; gap: 10px; align-items: flex-start; margin: 14px 0 4px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 5px; background: var(--panel2); cursor: pointer; }
 #modal .plain b, #modal .plain .teleopt b { font-weight: 400; }      /* the first box: nothing in bold */

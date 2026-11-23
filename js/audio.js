@@ -76,8 +76,13 @@ const SND = {
   salvage()  { noise({ f: 1500, to: 300, dur: 0.22, vol: 0.14, q: 1.2 }); tone({ f: 220, to: 110, dur: 0.2, type: 'sawtooth', vol: 0.06 }); },
   forge()    { tone({ f: 1480, to: 1400, dur: 0.5, type: 'triangle', vol: 0.16 }); tone({ f: 2220, dur: 0.3, type: 'sine', vol: 0.07 }); noise({ f: 3000, dur: 0.05, vol: 0.2 }); tone({ f: 120, to: 60, dur: 0.15, type: 'sine', vol: 0.25 }); },
   /* the whole tree opens: a low swell under two rising waves of notes, one for each ripple */
-  unlock()   { tone({ f: 55, to: 82, dur: 2.2, type: 'sine', vol: 0.28 }); noise({ f: 900, dur: 1.4, vol: 0.05, q: 0.6 });
-               [[196, 294, 392, 587], [262, 392, 523, 784, 1047]].forEach((w, k) => w.forEach((f, i) => tone({ f, dur: 0.9, type: 'triangle', vol: 0.09, at: 0.1 + k * 0.62 + i * 0.11 }))); },
+  tailwind() { noise({ f: 700, to: 2400, dur: 0.32, vol: 0.05, q: 0.7 }); tone({ f: 520, to: 780, dur: 0.22, type: 'sine', vol: 0.035 }); },      // a fight waved through: a short breath of air
+  /* a wider tree is revealed. The inner tree gets the two rising runs short of their last note; the whole tree gets that
+     note too, as plain as the rest: it is what the first reveal was leading to. */
+  unlock(o)  { const whole = !o || o.whole !== false;
+               tone({ f: 55, to: 82, dur: 2.2, type: 'sine', vol: 0.28 }); noise({ f: 900, dur: 1.4, vol: 0.05, q: 0.6 });
+               [[196, 294, 392, 587], [262, 392, 523, 784, 1047]].forEach((w, k) => w.forEach((f, i) => { const last = k === 1 && i === w.length - 1; if (last && !whole) return;
+                 tone({ f, dur: 0.9, type: 'triangle', vol: 0.09, at: 0.1 + k * 0.62 + i * 0.11 }); })); },
   /* the prestige page opens: quiet, and timed to what is seen (ui.js RIPPLE: dark for `dark`, what is held fades in over
      2.2 seconds, the ripple starts at `hold`, the second `gap` after). A soft chord starts with the click, swells through the dark and the fade, and hangs; then
      two slow rising runs of soft notes, one as each ripple goes out. No hammer, nothing sharp. */

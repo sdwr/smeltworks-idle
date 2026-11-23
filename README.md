@@ -81,7 +81,7 @@ It is a separate game from `../smeltworks` and shares nothing with it at run tim
   gold), and equip.
 - **Skills are the only thing that makes you stronger.** They drop from fights (seldom: under two a level; an act's boss
   always, any other boss every second time; the first three fights of every run always, chosen to fit the weapon on the bench), and with the
-  tree's **Market** node **gold buys them**: Buy a random skill, above the bag, gives one as your deepest level drops them, for eight kills' worth
+  tree's **Market** node **gold buys them**: Buy a random skill, above the bag, gives one as your deepest level drops them, for eight level 1 kills' worth
   of that level's gold.
 
   A skill is one **primary affix**, which is its effect and sets its colour, and one or two **secondary
@@ -153,7 +153,7 @@ It is a separate game from `../smeltworks` and shares nothing with it at run tim
 
   | Unlocked by | What it does |
   | --- | --- |
-  | Second line | Add an affix to a skill with none or one |
+  | Add affix | Add an affix to a skill with none or one |
   | Third line | Add a third affix to a skill with two |
   | Transmuting | Turn it into a different skill, keeping its tier and affixes |
 
@@ -180,11 +180,12 @@ It is a separate game from `../smeltworks` and shares nothing with it at run tim
 - **Gold is for getting deeper.** A fight pays **double** its gold the first time it is won in a run, and **half** whenever it is won again: a four-fold difference, for every fight, bosses and the rest alike. The run remembers the furthest fight it has won, so going back over cleared levels, or over the first fights of a level that keeps beating you, pays half. A whole level is worth about 39 kills of gold the first time (it was 19) and under 10 when it is fought again.
 - **Gold** is shown large across the top of the right-hand pane, over the crafter and the skills it is spent on.
   It glints, and the amount floats up beside it, as gold comes in.
-  **Making a weapon costs gold**: five kills' worth at your deepest level (16 at level 1), and takes a second
+  **Prices are fixed, and gold grows a little.** Everything gold buys is priced in kills' worth at level 1 and costs the same all run, however deep you are: a weapon, a reroll, a strike at the anvil, a skill bought or worked on. A kill's gold grows with depth, but slowly, and a whole level never pays more than a quarter over what level 1 does (an eighth more by level 13). What soaks up a deep run's gold is working on affixes: 26 to remove one, 39 to reroll them, 52 to add one and 156 for a third, against 26 to reroll a weapon. A level pays as its kills do: every boss is worth the same, 7.5 kills, whichever kind it is, and every act's rooms pay the same on average (within an act a room still pays by the life in it, so a pack pays more than a lone rat). So the deeper you fight, the more a kill buys. A fight still pays double the first time it is won in a run and half after: each fight is counted on its own, so levels a Head start skipped pay double their first time too.
+  **Making a weapon costs gold**: five level 1 kills' worth (16), and takes a second
   and a half at the anvil (three blows of the hammer, each a tink and a burst of sparks; the bench is busy
   until the new weapon is on it). Equipping is free and immediate. So a run's first
-  weapon has to be earned with the cursor, unless the tree's four **Purse** nodes (on the bridges) start the run
-  with gold for a weapon each.
+  weapon has to be earned with the cursor, unless one of the tree's eight **Purse** nodes starts the run
+  with gold (125 each).
 - **The tree is seen only by prestiging.** Your banked cores sit beside the Prestige button; there is no way
   to open the tree during a run.
 - **Locked things are not shown.** Until you hold the first weapon node there is no Weapons heading and no crafter; until
@@ -206,7 +207,7 @@ It is a separate game from `../smeltworks` and shares nothing with it at run tim
   | --- | --- |
   | The first weapon; the socket and Upgrade beside it | 1; 2 each |
   | The other unlocks | Rerolls 2; Might, Hex and Aid 4 each; Market 5; Life 5 |
-  | A Purse or a Head start | 3, wherever it is |
+  | A Purse or a Tailwind | 3, wherever it is |
   | A small node | 2, and a half more for each step out from the middle: 3 near it, 12 at the tips |
   | A notable | five times a small node at the same distance: 18 to 60 |
   | A weapon | by how far out it is: 8 for the nearest, then 25 and 25, and 122 and 122 for the last two |
@@ -232,9 +233,9 @@ It is a separate game from `../smeltworks` and shares nothing with it at run tim
 
   **Upgrade** lets gold strike at a weapon on the line: the **Upgrade** button on its card. Each strike adds
   **one to three ranks**, as it falls (the whole card flashes gold as the hammer lands), up to **+25**, and a rank is 3% more damage (+75% at the top). The rank
-  shows beside its name, as in Sword +7, and on a bar across the card. A strike costs six kills' gold at your
-  deepest level, and a quarter more for each rank the weapon already has: 18 kills' worth at +5, 56 at +10,
-  about 170 at +15, 520 at +20. So the first dozen ranks are cheap and the last few are a deep run's spare gold.
+  shows beside its name, as in Sword +7, and on a bar across the card. A strike costs 51 gold on a new weapon,
+  and a fifth more for each rank the weapon already has: about 125 at +5, 315 at +10,
+  780 at +15, 1,940 at +20. So it is never loose change, and the last few are a deep run's spare gold.
   Scrapping the weapon gives half of what went in back.
 
   **Level 3 is the wall.** The first two levels' enemies pull their blows (level 1 hits for two fifths; level 2 does not), so the cursor alone clears level 1 easily and level 2 with some Life to spare (aimed perfectly,
@@ -276,12 +277,25 @@ It is a separate game from `../smeltworks` and shares nothing with it at run tim
 
   The north and south no longer have small nodes for one affliction each: those asked you to pick a skill before you had seen any. The fourteen small nodes there are Whetstones, plain weapon damage (+70% in all, added to the Battle lines' 60%), and the afflictions keep one notable each.
 
-  Cheap conveniences sit beside the middle, 3 cores each (as every Purse and Head start is, wherever it sits): a **Purse** (gold for a weapon at the start of a run) over Rerolls and another under Might, and beyond each Purse two **Head starts** (five levels each: four here, +20 levels).
+  Cheap conveniences sit beside the middle, 3 cores each (as every Purse and Tailwind is, wherever it sits): a **Purse** (+125 gold at the start of a run: a weapon, a couple of rerolls for its sockets and a couple of skills from the Market) over Rerolls and another under Might, and beyond each Purse one **Tailwind** ("Skip some easy battles").
   On the other side, under Aid, is the **Full kit** (3 cores too): a run begins with one of every kind of skill there is to drop, the three plain ones or up to all ten.
-  A Head start always hangs from a Purse, here and on the bridges: a run that begins deep with no gold for a weapon cannot clear anything.
-  Four bridges (gold for a weapon, a starting skill, or five levels' head start, a node; eight Purses and eight Head starts on the tree in all, so a run can begin 40 levels in) join the ends of north
+  **Tailwind.** A fight won within a second of its first blow landing is an easy one (so a slow weapon that ends it in one hit counts, however long the blow took to come round), and after an easy one the next fight may be waved through: it pays its gold (double the first time, as ever), rolls its drop and counts as won, and is not fought. A boss is never skipped and never sets a skip off, so every level opens with a fight and ends with its boss; and a skipped fight sets nothing off itself. There are eight Tailwinds, and they add up:
+
+  | Tailwinds held | After an easy fight |
+  | --- | --- |
+  | 1 | 12% to skip the next |
+  | 2 | 27% |
+  | 3 | 45% |
+  | 4 | 65% |
+  | 5 | 90% |
+  | 6 | skips one, 20% a second |
+  | 7 | skips one, 55% a second |
+  | 8 | skips two |
+
+  The steps are sized so that each node takes about the same share, 8%, off the time an easy level takes: from about 14 seconds with none to about 7 with all eight. The first one bought reads "Skip some easy battles" and the rest "Skip more easy battles". (Tailwind stands where **Head start** stood, which began a run five levels in: that was a trap when taken early, and it skipped the gold and drops of the levels it passed. A Head start held from before comes back as cores.)
+  Four bridges of Purses (125 gold each; eight Purses and eight Tailwinds on the tree in all, and each Tailwind is on a branch off a Purse) join the ends of north
   and south to the arms, and each carries one notable for the long run: two **Deep veins** (two tier points each) and two **Battle line** (+15% damage for every weapon; there are four of those on the tree in all). The second bench lets the
-  crafter set one weapon aside, skills and all, and work on another. The whole tree is 138 nodes.
+  crafter set one weapon aside, skills and all, and work on another. The whole tree is 136 nodes. The eight Tailwinds are all side branches off a Purse, two beside the middle, one off each western bridge and two off each eastern: none stands on a path, so no route through the tree makes you take one.
   A weapon's nodes help only that type of weapon.
 
   The tree can be changed **only when you prestige**. The **Prestige** button beside the level does it at once,
@@ -305,12 +319,16 @@ It is a separate game from `../smeltworks` and shares nothing with it at run tim
 
   Mousing over a node shows its name and what it gives, and between runs whether a click will take it.
 
-  A **Head start** begins the run that many levels in (never deeper than you have cleared). **A level pays in full the first
-  time the run clears it, and with it, at half their worth, any levels under it the run was never paid for**: so
-  the levels a Head start passes over pay half (a start at level 6 pays 7 cores for clearing it, where fighting up
-  from level 1 pays 12), and a run that begins too deep for its line is no trap. Each lost fight drops it back a
-  level, and whatever level it does clear pays for itself and half of those below.
-  Then prestige and buy more. If the next node is out of reach, the same run again pays the same again. A head start skips the cheap levels for half of what they pay.
+  **A level pays in full the first time the run clears it.** Each lost fight drops the run back a level, and a level
+  cleared again pays nothing more. Then prestige and buy more. If the next node is out of reach, the same run again pays the same again.
+- **Patch notes.** A returning player is told what has changed, once: a "What's new" window when the game opens (or
+  under the gold from their time away, if there is any). A new player is never shown it. The notes are written by hand
+  in [js/notes.js](js/notes.js), which says how; while it is empty no window is shown. `index.html?notes` shows the window
+  for looking at.
+- **The tree opens in steps.** A new player is not handed all 136 nodes at once: first the weapon in the middle, then
+  the two beside it, then the square of nine round it. With five of those nine held the inner tree shows, out to the
+  first big thing each way (the second weapon, the second socket, Life, Cull), and holding any one of those four opens
+  the whole of it. What is not shown cannot be bought. The first three nodes, once bought, are kept for good.
 - **Away.** With the tab in the background the fight goes on. With the game shut you earn half your recent gold
   rate for up to eight hours; skills only drop while it is open.
 - **Old saves** load. Skills and affixes that have been cut become ones that exist (of the same colour where

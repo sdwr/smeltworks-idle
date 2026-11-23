@@ -229,8 +229,8 @@ function renderSkills() {
 /* the popup for a node of the tree: what it is, what it gives, what you would have of it, and whether it can be taken */
 function nodeTip(n) {
   const S = G.S, E = D.TREE_EFF[n.eff], held = G.has(n.id);
-  let h = `<div class="tn" style="color:${E.col}">${E.name}</div><div class="tp">${E.text(n.amt)}</div>`;
-  if (held) return h + (!S.alloc ? '' : G.canRemove(n.id) ? `<div class="tk">Unspec for ${ci('core')}${fmt(G.nodeCost(n.id))}</div>` : '<div class="tk">Other nodes hang from it</div>');
+  let h = `<div class="tn" style="color:${E.col}">${E.name}</div><div class="tp">${n.eff === 'tail' && D.TREE.some(o => o.eff === 'tail' && o.id !== n.id && G.has(o.id)) ? E.more : E.text(n.amt)}</div>`;
+  if (held) return h + (!S.alloc ? '' : G.canRemove(n.id) ? `<div class="tk">Unspec for ${ci('core')}${fmt(G.nodeCost(n.id))}</div>` : `<div class="tk">${D.TREE_GATE.includes(n.id) || D.TREE_FIRST.includes(n.id) ? 'Always kept' : 'Other nodes hang from it'}</div>`);
   const c = G.nodeCost(n.id), poor = c - G.cores();
   h += `<div class="tc${poor > 0 ? ' poor' : ''}">${ci('core')}${fmt(c)}</div>`;
   if (!S.alloc) return h;
@@ -260,41 +260,51 @@ const nodeShape = n => !n.big ? 'bead' : /^(post|sock)2?$/.test(n.eff) || n.eff 
 const RIPPLE = { spread: 1.5, reach: 640, fade: 1.3, gap: 0.62, dark: 0.5, hold: 3.2 };      // (dark: the tree is black this long as the page opens, then what is held fades in, and at `hold` the ripple starts)      // seconds for a ripple to get from the centre to `reach` (the tree's far edge); how long a node's two swells take; and how far the second ripple is behind the first
 /* (hold: when the page is opened the ripple waits this long first, with only what is held standing there: the tree you
    have is seen by itself for a moment before the rest of it comes up round it) */
-/* The tree opens in three steps: the first weapon alone; then Upgrade and the socket beside it; then, once both of
-   those are held, all of it, rippling out from the middle. (A save that holds anything further out sees all of it.) */
-const TREE_PAUSE = 1.05;                        // seconds between buying the second of the two and the whole tree rippling out
+/* The tree opens in steps: the first weapon alone (0); Upgrade and the socket beside it (1); the square of nine round
+   the middle (2); when five of the nine are held (D.TREE_SQUARE_NEED), the inner tree, out to the first big thing each way (3); and when one of
+   those four is held, all of it, rippling out from the middle (4, TREE_WHOLE). See D.TREE_SQUARE. A save that holds
+   something further out than its step would show is at the step that shows it. */
+const TREE_PAUSE = 1.05;                        // seconds between buying the node that opens the whole tree and the tree rippling out
+const TREE_WHOLE = 4;
 function treeStage() {
-  const core = id => D.TREE_GATE.includes(id) || D.TREE_FIRST.includes(id);
-  if (G.firstHeld() || Object.keys(G.S.tree).some(id => !core(id))) return 2;
+  const held = Object.keys(G.S.tree), core = id => D.TREE_GATE.includes(id) || D.TREE_FIRST.includes(id);
+  if (held.some(id => D.TREE_POINTS.includes(id) || !D.TREE_INNER.includes(id))) return TREE_WHOLE;
+  if (D.TREE_SQUARE.filter(G.has).length >= D.TREE_SQUARE_NEED || held.some(id => !D.TREE_SQUARE.includes(id))) return 3;
+  if (G.firstHeld() || held.some(id => !core(id))) return 2;
   return D.TREE_GATE.every(G.has) ? 1 : 0;
 }
 function treeSVG() {
   const at = id => id === 'start' ? { x: 0, y: 0 } : D.NODE[id];
   let stage = treeStage(); const now = performance.now() / 1000;
-  if (stage < 2 || !UI.pres) UI.treeWait = null;
+  if (stage < 3 || !UI.pres) UI.treeWait = null;
   if (UI.treeStage != null && stage > UI.treeStage && UI.pres) {      // a step opened while the page is up: what is new ripples out
-    if (stage === 2 && UI.treeStage === 1) {                          // the whole tree: a beat first, with the two just bought standing lit
+    if (stage >= 3) {                                                 // the inner tree, or the whole of it: a beat first, with what was just bought standing lit, and then it ripples out
       if (UI.treeWait == null) { UI.treeWait = now + TREE_PAUSE; setTimeout(() => { UI.dirty = true; }, TREE_PAUSE * 1000 + 30); }
-      if (now < UI.treeWait) stage = 1; else { UI.treeWait = null; UI.presAt = now; AU.play('unlock'); }
+      if (now < UI.treeWait) stage = UI.treeStage; else { UI.treeWait = null; UI.presAt = now; UI.ripMid = stage < TREE_WHOLE; UI.ripFrom = UI.treeStage; AU.play('unlock', null, { whole: stage === TREE_WHOLE }); }
     } else UI.presAt = now;
   }
   UI.treeStage = stage;
-  const shown = id => id === 'start' || stage === 2 || D.TREE_GATE.includes(id) || (stage === 1 && D.TREE_FIRST.includes(id));
-  const rt = performance.now() / 1000 - (UI.presAt == null ? -99 : UI.presAt), rip = rt < RIPPLE.spread + RIPPLE.fade + 0.4, ring = RIPPLE.spread * 740 / RIPPLE.reach;      // (a ring is drawn out to 740, at the ripple's own pace)
+  const shownAt = (stage, id) => id === 'start' || stage === TREE_WHOLE || D.TREE_GATE.includes(id) || (stage >= 1 && D.TREE_FIRST.includes(id)) || (stage >= 2 && D.TREE_SQUARE.includes(id)) || (stage >= 3 && D.TREE_INNER.includes(id));
+  const shown = id => shownAt(stage, id);
+  const rt = performance.now() / 1000 - (UI.presAt == null ? -99 : UI.presAt), rip = rt < RIPPLE.spread + RIPPLE.fade + 0.4;
+  // (full: the ripple proper, rings and all. It is the whole tree's, and the inner tree's at the moment it is first shown: that one is a third the size, so its ripple goes a third as far in the same time)
+  const full = stage === TREE_WHOLE || (UI.ripMid && rip), reach = stage === TREE_WHOLE ? RIPPLE.reach : 235, ring = RIPPLE.spread * 740 / reach;      // (a ring is drawn out to 740, at the ripple's own pace)
   // (the page just opened: what is held comes up out of the dark first, by itself, and that is counted from the opening, not from the ripple)
   const opening = rip && UI.presOpen != null && UI.presAt === UI.presOpen + RIPPLE.hold, od = opening ? (UI.presOpen + RIPPLE.dark - performance.now() / 1000).toFixed(2) + 's' : '';
   // (one of the two beside the first weapon taken and the other not: they come up together, as a pair, with what is held, and neither waits for the ripple)
-  const early = id => opening && stage < 2 && id !== 'start' && !G.has(id);      // (and so does everything else there is to see before the whole tree has opened: there is no ripple until then, only the fade)
-  const rd = (x, y, held) => rip ? `animation-delay:${held && opening ? od + ',' : ''}${((stage < 2 ? 0 : Math.hypot(x, y) / RIPPLE.reach * RIPPLE.spread) - rt).toFixed(2)}s;` : '';
+  // (kept: what was already on show when a wider tree is revealed stays as it is, bought or not. Only what is new comes in with the ripple)
+  const kept = id => rip && UI.ripFrom != null && shownAt(UI.ripFrom, id);
+  const early = id => opening && !full && id !== 'start' && !G.has(id);      // (and so does everything else there is to see before the whole tree has opened: there is no ripple until then, only the fade)
+  const rd = (x, y, held) => rip ? `animation-delay:${held && opening ? od + ',' : ''}${((!full ? 0 : Math.hypot(x, y) / reach * RIPPLE.spread) - rt).toFixed(2)}s;` : '';
   const rgd = rip ? `animation-delay:${(0.5 - rt).toFixed(2)}s` : '';      // the four names come up with the ripple too, not before it
-  let h = `<svg id="tree"${rip ? ` class="ripple${stage < 2 ? ' one' : ''}${opening ? ' opening' : ''}"${opening ? ` style="--od:${od}"` : ''}` : ''} viewBox="-615 -372 1230 744" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+  let h = `<svg id="tree"${rip ? ` class="ripple${!full ? ' one' : ''}${opening ? ' opening' : ''}"${opening ? ` style="--od:${od}"` : ''}` : ''} viewBox="-615 -372 1230 744" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
     <defs>
       <radialGradient id="gorb" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset=".45" stop-color="#fff" stop-opacity=".08"/><stop offset="1" stop-color="#000" stop-opacity=".28"/></radialGradient>
     </defs>
-    <g class="bg">${stage < 2 ? '' : `
+    <g class="bg">${stage < TREE_WHOLE ? '' : `
       <text class="region" x="-575" y="-318" style="--c:#ff9a4a;${rgd}">ARSENAL</text><text class="region" x="575" y="-318" text-anchor="end" style="--c:#b48cff;${rgd}">WORKSHOP</text>
       <text class="region" x="0" y="-348" text-anchor="middle" style="--c:#5aa8ff;${rgd}">CONTROL</text><text class="region" x="0" y="360" text-anchor="middle" style="--c:#ff5a48;${rgd}">ATTRITION</text>`}
-    </g>${rip ? (stage < 2 ? [] : [0.12, 0.12 + RIPPLE.gap]).map(d => `<circle class="ripwave" r="100" style="animation-duration:${ring.toFixed(2)}s;animation-delay:${(d - rt).toFixed(2)}s"/>`).join('') : ''}<g class="links">`;
+    </g>${rip ? (!full ? [] : [0.12, 0.12 + RIPPLE.gap]).map(d => `<circle class="ripwave${stage < TREE_WHOLE ? ' mid' : ''}" r="100" style="animation-duration:${(stage < TREE_WHOLE ? RIPPLE.spread * 270 / reach : ring).toFixed(2)}s;animation-delay:${(d - rt).toFixed(2)}s"/>`).join('') : ''}<g class="links">`;
   for (const n of D.TREE) for (const l of n.links) {
     if (!shown(n.id) || !shown(l)) continue;
     const a = at(l), on = G.has(n.id) && G.has(l), next = !on && ((G.has(l) && G.canAllocate(n.id)) || (G.has(n.id) && l !== 'start' && G.canAllocate(l)));
@@ -302,13 +312,13 @@ function treeSVG() {
     const len = Math.hypot(n.x - a.x, n.y - a.y) || 1, ux = (n.x - a.x) / len, uy = (n.y - a.y) / len, ta = Math.max(0, edgeAt(l, ux, uy) - 0.6), tn = Math.max(0, edgeAt(n.id, ux, uy) - 0.6), cut = ta + tn < len - 1;
     const f = v => +v.toFixed(1), x1 = cut ? f(a.x + ux * ta) : a.x, y1 = cut ? f(a.y + uy * ta) : a.y, x2 = cut ? f(n.x - ux * tn) : n.x, y2 = cut ? f(n.y - uy * tn) : n.y;
     const el = early(n.id) || early(l);
-    h += `<line class="link${on ? ' on' : next ? ' next' : ''}${el ? ' early' : ''}" style="--c:${D.TREE_EFF[n.eff].col};${rd((a.x + n.x) / 2, (a.y + n.y) / 2, on || el)}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`;
+    h += `<line class="link${on ? ' on' : next ? ' next' : ''}${el ? ' early' : ''}${kept(n.id) && kept(l) ? ' kept' : ''}" style="--c:${D.TREE_EFF[n.eff].col};${rd((a.x + n.x) / 2, (a.y + n.y) / 2, on || el)}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`;
   }
   h += `</g><g class="startnode"><circle r="35" class="halo"/></g>`;
   for (const n of D.TREE) {
     if (!shown(n.id)) continue;
     const E = D.TREE_EFF[n.eff], held = G.has(n.id), edge = !held && G.touches(n.id), open = edge && G.canAllocate(n.id), shape = nodeShape(n), R = shape === 'hub' ? 27 : n.big ? 21 : 7.5;      // a hub is the biggest thing on the tree: it matters most
-    h += `<g class="node ${shape}${n.eff === 'tier' ? ' tier' : ''}${n.big ? ' big' : ''}${held ? ' held' : open ? ' open' : edge ? ' edge locked' : ' locked'}${early(n.id) ? ' early' : ''}" style="--c:${E.col};${rd(n.x, n.y, held || early(n.id))}" data-act="node" data-node="${n.id}" transform="translate(${n.x} ${n.y})"><circle class="hit" r="${R + 7}"/>`;
+    h += `<g class="node ${shape}${n.eff === 'tier' ? ' tier' : ''}${n.big ? ' big' : ''}${held ? ' held' : open ? ' open' : edge ? ' edge locked' : ' locked'}${early(n.id) ? ' early' : ''}${kept(n.id) ? ' kept' : ''}" style="--c:${E.col};${rd(n.x, n.y, held || early(n.id))}" data-act="node" data-node="${n.id}" transform="translate(${n.x} ${n.y})"><circle class="hit" r="${R + 7}"/>`;
     if (shape === 'bead' && n.eff === 'tier') h += `<rect class="ring" x="-7.5" y="-7.5" width="15" height="15" rx="1.5" transform="rotate(45)"/>${held ? '' : '<circle class="pip" r="2.6"/>'}`;      // a skill tier: a diamond, to be found at a glance
     else if (shape === 'bead') h += `<circle class="ring" r="${R}"/>${held ? `<circle class="shine" r="${R}"/>` : '<circle class="pip" r="2.6"/>'}`;
     else {
@@ -418,7 +428,7 @@ function patch(force) {
     pb.dataset.tipText = can ? 'Ends the run, banks its cores and opens the tree' : `Reach level ${D.PRESTIGE_AT} first`;
     if (UI.pres) UI.dirty = true;
   }
-  if (S.alloc && !UI.pres) showPrestige(true);     // between runs the tree is all there is
+  if (S.alloc && !UI.pres) showPrestige(true, true);     // between runs the tree is all there is (and here it is being put back, not opened: see showPrestige)
   readDps(false);
 }
 /* the count after a lost fight: grey over the arena, the seconds left in the middle */
@@ -499,16 +509,32 @@ UI.playDataNotice = function () {
   modal(`<h3>One new thing</h3><p>This test build can send anonymous notes on how your runs go, to help balance the game.</p>${playDataLine()}
     <div class="btns"><button class="big" data-act="close">Continue</button></div>`);
 };
-function showPrestige(on) { if (!on && G.S.alloc) return; if (on && !UI.pres) { UI.presOpen = performance.now() / 1000; UI.presAt = UI.presOpen + RIPPLE.hold; } UI.pres = !!on; $('prestige').classList.toggle('hidden', !on); if (on) renderCores(); hideTip(); }
+/* (quiet: the page is only being put back, as on a reload while the tree was open. Nothing was prestiged just now, so it is simply there: no dark, no fade, no ripple) */
+function showPrestige(on, quiet) { if (!on && G.S.alloc) return; if (on && !UI.pres) { UI.presOpen = quiet ? null : performance.now() / 1000; UI.presAt = quiet ? null : UI.presOpen + RIPPLE.hold; UI.ripMid = false; UI.ripFrom = null; } UI.pres = !!on; $('prestige').classList.toggle('hidden', !on); if (on) renderCores(); hideTip(); }
 UI.welcome = function () {
   modal(`<div class="plain"><h3>Smeltworks Idle</h3>
     <p>Click and hold to attack enemies.</p>
     <p>Complete a full level before your life runs out to gain cores, then prestige.</p>${playDataLine()}
     <div class="btns"><button class="big" data-act="close">Begin</button></div></div>`);
 };
+/* Patch notes for a player who has come back (js/notes.js): the newest three they have not been shown, newest first.
+   Showing them counts them as read. `all`: every note, read or not, for looking at the window (?notes on the address). */
+const noteEsc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+function notesBlock(all) {
+  const list = (all ? (SW.notes || []).filter(n => n && n.lines && n.lines.length).sort((a, b) => b.id - a.id) : G.unseenNotes()).slice(0, 3);
+  if (!list.length) return '';
+  if (!all) { G.seeNotes(); G.save(); }
+  return `<div class="notes">${list.map(n => `${n.title ? `<h4>${noteEsc(n.title)}</h4>` : ''}<ul>${n.lines.map(l => `<li>${noteEsc(l)}</li>`).join('')}</ul>`).join('')}</div>`;
+}
+UI.whatsNew = function (all) {
+  const b = notesBlock(all); if (!b) return false;
+  modal(`<h3>What's new</h3>${b}${SW.telemetry.asked() ? '' : playDataLine()}
+    <div class="btns"><button class="big" data-act="close">Continue</button></div>`);
+  return true;
+};
 UI.offline = function (o) {
   const h = Math.floor(o.secs / 3600), m = Math.floor(o.secs % 3600 / 60);
-  modal(`<h3>While you were away</h3><p><b>${h ? h + 'h ' : ''}${m}m</b> · <b class="hot">${fmt(o.gold)} gold</b></p>${SW.telemetry.asked() ? '' : playDataLine()}
+  modal(`<h3>While you were away</h3><p><b>${h ? h + 'h ' : ''}${m}m</b> · <b class="hot">${fmt(o.gold)} gold</b></p>${(b => b ? `<h3 class="sub">What's new</h3>${b}` : '')(notesBlock())}${SW.telemetry.asked() ? '' : playDataLine()}
     <div class="btns"><button class="big" data-act="close">Continue</button></div>`);
 };
 function settings() {
@@ -534,6 +560,7 @@ UI.onEvent = function (ev) {
     case 'hit': if (ev.who < 0) AU.play(ev.crit ? 'tapCrit' : 'tap', 0.05); else AU.play(ev.crit ? 'softCrit' : 'soft', ev.crit ? 0.3 : 0.22); break;
     case 'hurt': { AU.play(ev.slam ? 'ouchBig' : 'ouch', 0.18); const c = document.querySelector('.lifebar'); c.classList.remove('hurt'); void c.offsetWidth; c.classList.add('hurt'); break; }
     case 'kill': AU.play(ev.boss ? 'win' : 'fall', 0.15); AU.play('chink', 0.25); break;
+    case 'tailwind': AU.play('tailwind', 0.2); break;
     case 'spawn': if (G.F.enc && G.F.enc.actBoss) AU.play('boss'); break;
     case 'nova': AU.play('boom', 0.4); break;
     case 'arc': AU.play('zap', 0.3); break;
@@ -545,7 +572,7 @@ UI.onEvent = function (ev) {
     }
     case 'bagfull': toast(`<b class="t-${D.SKILL[ev.sk].c}">${D.SKILL[ev.sk].name}</b> row full: salvaged ${ci('gold')}${fmt(ev.gold)}`); break;
     case 'leveldone': interlude(ev); AU.play('level'); break;
-    case 'prestige': AU.play('treeOpen', null, Object.assign({ arp: treeStage() === 2 }, RIPPLE)); $('interlude').classList.add('hidden'); UI.sel = null; UI.fresh.clear(); UI.glows = {}; for (const el of document.querySelectorAll('.newglow')) el.classList.remove('newglow'); showPrestige(true); break;      // (the runs of notes are for the whole tree: before it has opened there is only the chord)
+    case 'prestige': AU.play('treeOpen', null, Object.assign({ arp: treeStage() === TREE_WHOLE }, RIPPLE)); $('interlude').classList.add('hidden'); UI.sel = null; UI.fresh.clear(); UI.glows = {}; for (const el of document.querySelectorAll('.newglow')) el.classList.remove('newglow'); showPrestige(true); break;      // (the runs of notes are for the whole tree: before it has opened there is only the chord)
     case 'run': UI.pres = false; $('prestige').classList.add('hidden'); $('banner').innerHTML = ''; openTick(); AU.play('level'); UI.dirty = true; UI.render(); flashNew(); break;
     case 'goto': $('interlude').classList.add('hidden'); break;
     case 'fail': $('banner').innerHTML = ''; $('dead-title').textContent = ev.boss ? 'Overrun' : 'Driven back'; $('dead-sub').textContent = ev.back ? 'Back to level ' + G.S.level : 'Level ' + G.S.level + ' restarts'; deadTick(); AU.play('death'); break;

@@ -6,9 +6,15 @@ const G = SW.game = { S: null, F: null, X: null, ev: [], offline: null };
 const emit = (t, o) => { if (G.ev.length < 400) G.ev.push(Object.assign({ t }, o)); };
 
 /* ------------------------------------------------------------------ state */
+/* Patch notes (js/notes.js): a save keeps the id of the newest one it has been shown (S.notes). A new save starts with
+   them all counted as read; one from before there were any has read none. */
+const notes = () => (SW.notes || []).filter(n => n && n.id > 0 && n.lines && n.lines.length);
+G.noteTop = () => notes().reduce((m, n) => Math.max(m, n.id), 0);
+G.unseenNotes = () => notes().filter(n => n.id > (G.S.notes || 0)).sort((a, b) => b.id - a.id);
+G.seeNotes = () => { G.S.notes = Math.max(G.S.notes || 0, G.noteTop()); };
 G.fresh = function () {
   const S = {
-    v: 1, gate: 2, gold: 0, crafter: 0, runs: 0,
+    v: 1, gate: 2, gold: 0, crafter: 0, runs: 0, hsOut: 1, tailIn: 1, notes: G.noteTop(),
     best: 1,                 // the deepest level ever reached
     bank: 0,                 // cores in hand: what runs have earned, less what the tree has cost
     tree: {},                // the nodes of the prestige tree that are held
@@ -22,7 +28,7 @@ G.fresh = function () {
   for (let i = 0; i < D.POSTS0; i++) S.posts.push({ unit: null });
   return S;
 };
-const freshFight = () => ({ es: [], enc: null, eid: 1, meter: {}, meterT: 0, life: null, wait: 0, cd: [], nova: {}, cdC: 0, hold: false, ax: 0, ay: 0, goldWin: 0, winT: 0 });
+const freshFight = () => ({ es: [], enc: null, eid: 1, meter: {}, meterT: 0, life: null, wait: 0, cd: [], nova: {}, cdC: 0, hold: false, ax: 0, ay: 0, goldWin: 0, winT: 0, dur: 0, skip: 0 });
 G.init = function (saved) {
   G.S = saved || G.fresh();
   const S = G.S;
@@ -159,7 +165,7 @@ G.give = function (gem, quiet) {
 const spend = n => { if (G.S.gold < n) return false; G.S.gold -= n; return true; };       // the forge is paid in gold
 /* buy a skill: a random one of those the bag has room for, at your deepest level, rolled just as a monster there
    would drop it. */
-G.buyCost = () => Math.ceil(D.buyCost(G.S.maxLevel) * (1 - Math.min(75, G.treeVal('cheap')) / 100));
+G.buyCost = () => Math.ceil(D.buyCost(D.PRICE_LVL) * (1 - Math.min(75, G.treeVal('cheap')) / 100));
 /* which one is not yours to choose: it goes by the bag, an empty row first (pickKind) */
 G.buySkill = function () {
   const S = G.S; if (!G.skillsOn() || !G.treeVal('uBuy')) return false;       // buying is a node on the tree
@@ -185,17 +191,19 @@ G.lock = function (id) { const at = G.find(id); if (!at) return false; at.gem.lo
    are unlocked by nodes of the prestige tree (the `node` of each), and cost more. All work on a loose skill (in the
    bag or on the bench), for gold, and never touch its primary affix but Transmuting. */
 const craftMult = () => 1 - Math.min(75, G.treeVal('craft')) / 100;
+/* (working on a skill's affixes is dear: 26 to take one off, 39 to roll them again, 52 to add one, 156 for a third, where a reroll of the weapon is 26.
+   Prices are fixed, so this is where a deep run's gold goes: a whole line of third affixes is a long saving.) */
 D.CRAFTS = [
-  { id: 'strip',  name: 'Remove affix', price: 'strip', mult: 1,   can: g => g.aff.length > 0, why: 'No affix', text: () => 'One, at random' },
-  { id: 'recast', name: 'Reroll affixes', price: 'recast', mult: 1,   can: g => g.aff.length > 0, why: 'No affix', text: () => 'New affixes' },
-  { id: 'add',    name: 'Add an affix', price: 'recast', mult: 2,   node: 'cAdd', can: g => g.aff.length < 2, why: 'Has two already', text: () => 'One more affix' },
-  { id: 'third',  name: 'Add a third affix', price: 'recast', mult: 5,   node: 'cThird', can: g => g.aff.length === 2, why: 'Needs two affixes', text: () => 'A third affix' },
+  { id: 'strip',  name: 'Remove affix', price: 'strip', mult: 2.6, can: g => g.aff.length > 0, why: 'No affix', text: () => 'One, at random' },
+  { id: 'recast', name: 'Reroll affixes', price: 'recast', mult: 3,   can: g => g.aff.length > 0, why: 'No affix', text: () => 'New affixes' },
+  { id: 'add',    name: 'Add an affix', price: 'recast', mult: 4,   node: 'cAdd', can: g => g.aff.length < 2, why: 'Has two already', text: () => 'One more affix' },
+  { id: 'third',  name: 'Add a third affix', price: 'recast', mult: 12,  node: 'cThird', can: g => g.aff.length === 2, why: 'Needs two affixes', text: () => 'A third affix' },
   { id: 'morph',  name: 'Transmute', price: 'recast', mult: 2,   node: 'cMorph', can: () => true, text: () => 'Becomes another skill' },
 ];
 D.CRAFT_BY = {}; D.CRAFTS.forEach(c => D.CRAFT_BY[c.id] = c);
 G.craftUnlocked = id => { const c = D.CRAFT_BY[id]; return !!c && (!c.node || G.treeVal(c.node) > 0); };
 /* what a craft costs goes by how deep the run has been, as a new weapon and a bought skill do: not by the skill */
-G.craftCost = (id, gem) => { const c = D.CRAFT_BY[id]; return Math.ceil(D.FORGE[c.price](G.S.maxLevel) * c.mult * craftMult()); };
+G.craftCost = (id, gem) => { const c = D.CRAFT_BY[id]; return Math.ceil(D.FORGE[c.price](D.PRICE_LVL) * c.mult * craftMult()); };
 /* craft a skill */
 G.craft = function (kind, id) {
   const at = G.find(id), c = D.CRAFT_BY[kind]; if (!at || !c || !G.craftUnlocked(kind)) return false;
@@ -264,7 +272,7 @@ G.swapBench = function () {
 };
 /* what it costs to reroll the bench: 'all' of it, or one half and keep the other, which is dearer: the 'type'
    alone (the sockets stay), or the 'socks' alone (the type and its damage roll stay). */
-G.benchCost = () => Math.ceil(D.MAKE * D.gold(G.S.maxLevel) * D.CRAFT.part * (1 - Math.min(D.REROLL_CUT, G.treeVal('reroll')) / 100));      // (never down to what a new weapon costs)
+G.benchCost = () => Math.ceil(D.MAKE * D.gold(D.PRICE_LVL) * D.CRAFT.part * (1 - Math.min(D.REROLL_CUT, G.treeVal('reroll')) / 100));      // (never down to what a new weapon costs)
 G.benchReroll = function (kind) {
   const S = G.S, B = S.bench, c = G.benchCost(kind);
   if (kind !== 'type' && kind !== 'socks') return false;      // (the whole weapon again is Make)
@@ -287,13 +295,13 @@ function reforged(kind) {
   else { B.type = U.pick(D.WEAPON_IDS.filter(t => t !== B.type)); B.q = rollQuality(); }      // always a different type; the sockets and what is in them stay
   G.recompute(); emit('bench', { kind });
 }
-G.salvageValue = gem => D.FORGE.salvage(G.S.maxLevel, gem.aff.length);
+G.salvageValue = gem => D.FORGE.salvage(D.PRICE_LVL, gem.aff.length);
 G.unitGems = u => u.sockets.map(s => s.gem).filter(Boolean);
 /* what scrapping a weapon pays: the salvage of the skills that went into it */
 G.scrapValue = u => G.unitGems(u).reduce((n, g) => n + G.salvageValue(g), 0) + Math.floor((u.upGold || 0) * D.UP.back);      // and half of what went into upgrading it
 /* Upgrading: with the tree's Upgrade node a weapon on the line can be struck up a rank for gold (D.UP) */
 G.upMult = u => 1 + D.UP.dmg / 100 * (u.up || 0);
-G.upCost = u => Math.ceil(D.UP.cost * D.gold(G.S.maxLevel) * Math.pow(D.UP.step, u.up || 0));
+G.upCost = u => Math.ceil(D.UP.cost * D.gold(D.PRICE_LVL) * Math.pow(D.UP.step, u.up || 0));
 G.canUpgrade = post => { const S = G.S, P = S.posts[post]; return !!(G.treeVal('uUp') && P && P.unit && (P.unit.up || 0) < D.UP.max && S.gold >= G.upCost(P.unit)); };
 G.upgrade = function (post) {
   const S = G.S; if (!G.canUpgrade(post)) return false;
@@ -308,7 +316,7 @@ G.upgrade = function (post) {
 /* Making a weapon: gold, and D.FORGE_SECS at the anvil, for a new weapon on the bench, its type and every socket
    rolled afresh (so making again is the reroll of the whole thing; skills in the old one go back to the bag). It
    costs D.MAKE kills' gold at your deepest level. Equipping it, once you have set its skills, is free. */
-G.makeCost = () => Math.ceil(D.MAKE * D.gold(G.S.maxLevel));
+G.makeCost = () => Math.ceil(D.MAKE * D.gold(D.PRICE_LVL));
 G.canMake = function () { const S = G.S; return S.posts.length > 0 && !S.forge && S.gold >= G.makeCost(); };
 G.make = function () {
   const S = G.S; if (!G.canMake()) return false;
@@ -375,7 +383,7 @@ G.nodeCost = function (id) {
   if (n.eff === 'tier') return Math.round(far('tier') * (n.big ? P.tierBig : 1));
   if (n.eff === 'post2' || n.eff === 'sock2') return Math.round(far(n.eff));
   if (n.eff === 'bench2') return P.bench2;
-  if (n.eff === 'purse' || n.eff === 'head' || n.eff === 'kitAll') return P.conv;
+  if (n.eff === 'purse' || n.eff === 'tail' || n.eff === 'kitAll') return P.conv;
   return Math.round(n.big ? bead * P.notable : bead);
 };
 /* the first node (D.TREE_GATE: the first weapon, in the middle) comes before everything else.
@@ -398,7 +406,7 @@ G.allocate = function (id) {
    so a tree is taken apart from its tips inwards. There is no clearing it all at once. */
 G.canRemove = function (id) {
   const S = G.S; if (!S.alloc || !S.tree[id]) return false;
-  if (D.TREE_FIRST.includes(id) && Object.keys(S.tree).some(k => !D.TREE_GATE.includes(k) && !D.TREE_FIRST.includes(k))) return false;      // Upgrade and the socket stay while anything bought after them is held
+  if (D.TREE_GATE.includes(id) || D.TREE_FIRST.includes(id)) return false;      // the first three (the weapon, Upgrade and the socket) are never handed back: everything else can be
   const seen = new Set(['start']), todo = ['start'], near = x => x === 'start' ? D.TREE_START : D.NODE[x].near;
   while (todo.length) for (const y of near(todo.pop())) if (y !== id && y !== 'start' && S.tree[y] && !seen.has(y)) { seen.add(y); todo.push(y); }
   return seen.size === G.spent();          // the start, and every held node but this one
@@ -410,7 +418,7 @@ G.headLevels = () => Math.min(G.treeVal('head'), G.S.best - 1);
 function newRun() {
   const S = G.S, head = G.headLevels();
   S.maxLevel = 1 + head; S.level = S.maxLevel; S.fight = 0; S.auto = true; S.gps = 0;      // a Head start begins the run that many levels in
-  S.gold = G.treeVal('purse') * G.makeCost();      // Purse nodes: gold for that many weapons, at what they cost where the run begins
+  S.gold = G.treeVal('purse') * D.PURSE;      // Purse nodes: each one the gold to set a weapon up (D.PURSE)
   S.bag = []; for (const P of S.posts) P.unit = null;
   S.bench = G.blankBench(); S.spare = null;
   S.run = { drops: 0, kills: 0, time: 0, earn: 0, paid: 0 };
@@ -594,10 +602,11 @@ G.spawn = function () {
   } else {
     type = S.run.kills === 0 ? 'single' : U.wpick(['single', 'pack', 'swarm'], k => E[k].w);
     const T = E[type];
-    if (type === 'single') { const m = U.wpick(act.mobs, x => x.hp); add(m, m.hp, 1, m.hp, { r: m.hp >= 1.4 ? 9 : 8 }); name = m.name; }
+    const even = D.roomEven(act);                  // (a room pays by the life in it, and every act's rooms pay the same on average: see D.roomEven)
+    if (type === 'single') { const m = U.wpick(act.mobs, x => x.hp); add(m, m.hp, 1, m.hp * even, { r: m.hp >= 1.4 ? 9 : 8 }); name = m.name; }
     else {
       const m = U.pick(type === 'swarm' ? small : act.mobs), n = U.irand(T.n[0], T.n[1]);
-      for (let i = 0; i < n; i++) add(m, m.hp * T.hp / n, T.hit / n, m.hp * T.hp / n, { r: type === 'swarm' ? 3.6 : 5 });
+      for (let i = 0; i < n; i++) add(m, m.hp * T.hp / n, T.hit / n, m.hp * T.hp / n * even, { r: type === 'swarm' ? 3.6 : 5 });
       place(0, type === 'swarm' ? hexSpots(n, D.SPREAD.swarm) : ringSpots(n, D.SPREAD.pack / (2 * Math.sin(Math.PI / n))));
       name = (type === 'swarm' ? 'Swarm: ' : 'Pack: ') + m.name;
     }
@@ -607,6 +616,23 @@ G.spawn = function () {
   let reach = 0; for (const e of es) { e.ox = e.x; e.oy = e.y; reach = Math.max(reach, Math.hypot(e.x, e.y) + e.r + D.ROAM.leash); }
   F.roam = { x: 0, y: 0, tx: 0, ty: 0, R: Math.max(0, D.ROAM.field - reach), wait: 0.6 };
   F.enc = { type, name, boss, actBoss: type === 'actboss', n: es.length, max: es.reduce((s, e) => s + e.max, 0), drop: (E[type] && E[type].drop) || 1, lost: false };
+  /* Tailwind: the fight before this one was won in under a second, and the tree's Tailwinds rolled this one away. It is
+     made as it would have been, and then not fought: it pays what its enemies would have paid, drops what it would
+     have dropped, and counts as won. Never a boss: a skip that would fall on one is let go. */
+  if (F.skip > 0) {
+    if (!boss) {
+      F.skip--;
+      const fn = G.fightNo(), first = !(S.run.won && S.run.won[fn]) && fn > (S.run.base == null ? -1 : S.run.base); let gold = 0;
+      for (const e of es) gold += e.gold * X.goldMult * D.FIRST_GOLD[first ? 'first' : 'again'];
+      S.gold += gold; S.stats.gold += gold; S.stats.kills += es.length; S.run.kills += es.length; F.goldWin += gold; S.run.tail = (S.run.tail || 0) + 1;
+      if (S.fight === 0) F.life = X.lifeMax;      // a level's Life is full at its first fight, fought or not
+      spoils(F.enc); S.fight++; F.es = [];
+      emit('tailwind', { gold, name });
+      return G.spawn();
+    }
+    F.skip = 0;
+  }
+  F.dur = 0; F.first = null;
   // Life lasts the level: it is full at a level's first fight (so after a loss too, which always starts one), and
   // what is left of it carries from fight to fight after that
   if (S.fight === 0 || F.life == null) F.life = X.lifeMax; else F.life = Math.min(F.life, X.lifeMax);
@@ -619,7 +645,8 @@ G.spawn = function () {
    splash, arc and burn it caused, as it landed, and never more than the enemy had left. It is a measurement, not
    part of the save: it starts again when the page loads, and for a post when its weapon is made or scrapped. */
 const METER = 30, mkey = who => who < 0 ? 'c' : who;
-function dealt(key, d) { const F = G.F, m = F.meter[key] || (F.meter[key] = { b: new Array(METER).fill(0), i: 0, n: 1 }); m.b[m.i] += d; }
+function dealt(key, d) { const F = G.F; if (F.first == null && d > 0) F.first = F.dur || 0;      // (the fight's first blow: Tailwind's second is counted from it)
+  const m = F.meter[key] || (F.meter[key] = { b: new Array(METER).fill(0), i: 0, n: 1 }); m.b[m.i] += d; }
 function meterTick(dt) {
   const F = G.F; F.meterT += dt;
   while (F.meterT >= 1) { F.meterT -= 1; for (const k in F.meter) { const m = F.meter[k]; m.i = (m.i + 1) % METER; m.b[m.i] = 0; m.n = Math.min(METER, m.n + 1); } }
@@ -729,8 +756,9 @@ G.fightNo = () => (G.S.level - 1) * D.FIGHTS + G.S.fight;
 function kill(e) {
   const S = G.S, F = G.F, X = G.X;
   e.dead = true; e.hp = 0;
-  // a fight pays double the first time it is won in a run and half whenever it is won again: S.run.far is the furthest fight the run has won
-  const first = G.fightNo() > (S.run.far == null ? -1 : S.run.far), gold = e.gold * X.goldMult * D.FIRST_GOLD[first ? 'first' : 'again'];
+  // a fight pays double the first time it is won in a run and half whenever it is won again. Each fight is kept (S.run.won), so the
+  // levels a Head start skipped, or any you were driven back to without having fought there, still pay double their first time
+  const fn = G.fightNo(), first = !(S.run.won && S.run.won[fn]) && fn > (S.run.base == null ? -1 : S.run.base), gold = e.gold * X.goldMult * D.FIRST_GOLD[first ? 'first' : 'again'];
   S.gold += gold; S.stats.gold += gold; S.stats.kills++; S.run.kills++; F.goldWin += gold;
   if (X.leech > 0 && F.life > 0) F.life = Math.min(X.lifeMax, F.life + X.leech);      // Life on kill
   emit('kill', { id: e.id, gold, boss: e.boss });
@@ -767,10 +795,9 @@ function starterSkill() {
   return G.dropOf(U.pick(D.SKILLS));
 }
 /* the arena is empty */
-function won() {
-  const S = G.S, F = G.F, X = G.X, enc = F.enc;
-  if (!(F.life > 0)) F.life = 1;                  // the last blow landed as the last of your Life went: you stand, barely
-  if (enc.boss) S.stats.bosses++;
+/* what a fight leaves behind when it is over, fought or waved through: its drops, and its place among the fights won */
+function spoils(enc) {
+  const S = G.S, X = G.X;
   /* Skills drop more often the more kinds there are to drop: a new game has three (a plain one of each colour) and
      each colour's node on the tree opens its real ones, eight in all. So a kind you want comes as often with every
      colour open as it did with none. A boss's drops do not grow: one from an act's boss, one from any other boss every
@@ -788,7 +815,24 @@ function won() {
   if (!G.skillsOn()) drops = 0;                   // until weapons have a socket there are no skills at all
   else S.run.owed = U.clamp(owed + want - drops, -3, 3);
   while (drops-- > 0) G.give(G.rollGem(G.dropLevel(), enc.boss, starter ? starterSkill() : nextDrop(), S.level));
-  S.run.far = Math.max(S.run.far == null ? -1 : S.run.far, G.fightNo());
+  S.run.far = Math.max(S.run.far == null ? -1 : S.run.far, G.fightNo()); (S.run.won || (S.run.won = {}))[G.fightNo()] = 1;
+}
+/* how many of the next fights a fast win waves through: none, one or two, by how many Tailwinds the tree holds (D.TAIL) */
+function tailRoll() {
+  const n = Math.min(G.treeVal('tail'), D.TAIL.odds.length); if (!n) return 0;
+  const o = D.TAIL.odds[n - 1]; if (U.rng() >= o[0]) return 0;
+  return o[1] > 0 && U.rng() < o[1] ? 2 : 1;
+}
+G.tailOdds = () => { const n = Math.min(G.treeVal('tail'), D.TAIL.odds.length); return n ? D.TAIL.odds[n - 1] : [0, 0]; };
+function won() {
+  const S = G.S, F = G.F, enc = F.enc;
+  if (!(F.life > 0)) F.life = 1;                  // the last blow landed as the last of your Life went: you stand, barely
+  if (enc.boss) S.stats.bosses++;
+  /* Tailwind: an easy fight, so the next may not need fighting at all (G.spawn). Easy is won within D.TAIL.secs of
+     its first blow landing, not of its opening: a hammer takes two and a half seconds to come round, and the fight
+     it then ends in one blow is as easy as any a dagger wins. Counted from the opening, slow weapons never had one. */
+  F.skip = !enc.boss && F.dur - (F.first == null ? F.dur : F.first) < D.TAIL.secs ? tailRoll() : 0;      // (and not off a boss: a level always opens with a fight)
+  spoils(enc);
   S.fight++;
   if (S.fight >= D.FIGHTS) {
     S.fight = 0; let pay = 0;
@@ -816,7 +860,7 @@ function fail() {
   enc.lost = true; S.stats.fails++; S.run.fails = (S.run.fails || 0) + 1;
   let back = false;
   if (!enc.boss && S.level > 1) { S.level--; back = true; }
-  S.fight = 0;
+  S.fight = 0; F.skip = 0;
   F.wait = D.DEATH_SECS; F.dead = true;      // down for the count: nothing fights until it is over (the forge and the bag still work)
   emit('fail', { boss: enc.boss, back, secs: D.DEATH_SECS });
 }
@@ -834,6 +878,7 @@ G.update = function (dt) {
     F.wait -= dt; if (F.wait <= 0) G.spawn(); return;
   }
   meterTick(dt);                                  // only time spent fighting counts
+  F.dur = (F.dur || 0) + dt;                      // how long this fight has run (Tailwind asks)
   // the enemies' turn: they roam, and each stops to swing at the air on its own clock; the swing takes Life
   drift(dt);
   for (const e of F.es) {
@@ -928,7 +973,14 @@ G.patch = function (S) {
   if (!S.tree) { S.tree = {}; S.alloc = false; S.best = Math.max((S.best || 0) + 1, S.maxLevel || 1); }
   delete S.cores; delete S.perk; delete S.run.from; if (S.stats) delete S.stats.cores;
   const back = (S.tree.CLK ? 20 : 0) + (S.tree.CFU ? 40 : 0) + (S.tree.CPK ? 18 : 0) + (S.tree.CON ? 23 : 0);      // Lucky tiers, Fusing, Standing order and Fine work are gone, with what they unlocked: what they cost comes back
+  for (const id of ['xa2', 'xc2']) if (S.tree[id]) S.bank = (S.bank || 0) + 7;      // Provisions is gone from the tree: what it cost comes back
+  // the second Head start on each branch beside the middle has moved out to a western bridge (the first stays where it was): one held from before comes back as cores, to be bought again out there
+  if (!S.hsOut) { for (const id of ['HS3', 'HS4']) if (S.tree[id]) { S.bank = (S.bank || 0) + 3; delete S.tree[id]; } S.hsOut = 1; }
+  // Head start is gone from the tree, and Tailwind stands where it stood: one held from before comes back as cores, and Tailwind is the player's to buy or not
+  if (S.notes == null) S.notes = 0;      // a save from before there were patch notes has read none of them
+  if (!S.tailIn) { for (const n of D.TREE) if (n.eff === 'tail' && S.tree[n.id]) { S.bank = (S.bank || 0) + 3; delete S.tree[n.id]; } S.tailIn = 1; }
   for (const id in S.tree) if (!D.NODE[id]) delete S.tree[id];
+  delete S.br2;
   // a save from when a level of depth was a point and a node cost one: what it had not spent becomes cores, and it keeps its tree
   if (S.bank == null) S.bank = Math.max(0, (S.best || 1) - 1 - Object.keys(S.tree).length);
   S.bank += back;
@@ -938,6 +990,7 @@ G.patch = function (S) {
   // and from before a fight paid less the second time: the run has won every fight up to where it stands
   if (S.run.made == null) S.run.made = S.posts.some(P => P.unit) ? 2 : S.bench && S.bench.made ? 1 : 0;      // weapons made this run, as near as an older save can say
   if (S.run.far == null) S.run.far = Math.max(S.run.paid * D.FIGHTS - 1, S.level === S.maxLevel ? (S.level - 1) * D.FIGHTS + (S.fight || 0) - 1 : -1);
+  if (S.run.won == null) { S.run.won = {}; S.run.base = S.run.far; }      // and from before each fight won was kept: every fight up to the furthest counts as won
   delete S.run.skip;
   // a save from before the first two nodes: it has a line and skills already, so it holds them. The first socket
   // used to come free and is now the second of them, so what the crafter had counts one more

@@ -34,7 +34,7 @@ const U = SW.util = {
 };
 
 const D = SW.data = {};
-D.VERSION = '0.94.5';
+D.VERSION = '0.100.0';
 D.SAVE_KEY = 'smeltworks-idle-v1';
 /* Play data (js/telemetry.js): where it is posted, and the only addresses of the game it is ever sent from */
 D.TELEMETRY = { url: 'https://smeltworks-idle-logging.sdwr.workers.dev/ingest', hosts: ['sdwr.github.io'] };
@@ -67,7 +67,16 @@ D.SWING = Math.sqrt(D.PACE);        // enemy swings are this much further apart,
 D.PAY = Math.sqrt(D.PACE);          // and a fight pays this much more
 D.HP0 = 3;   D.HP_P = 4.4;           // a level 1 monster's life (before D.PACE), and how steeply it grows (see D.depth)
 D.HP_STEP = 0.05;                   // each fight inside a level has this much more life than the one before
-D.GOLD0 = 2;  D.GOLD_P = 3.5;       // gold for a level 1 kill, and how steeply that grows
+D.GOLD0 = 2;                       // gold for a level 1 kill
+/* Gold grows only a little with depth, and never to twice what level 1 pays: half way there `half` levels in, then ever more
+   slowly. Prices do not grow at all (D.PRICE_LVL), so the deeper you are the more a kill buys: more weapons made, more rerolls,
+   more strikes at the anvil, but never so many that gold stops mattering. */
+/* (A whole level pays as a kill does: every boss is worth the same 7.5 kills whatever kind it is (an act boss was 12
+   and an elder 7, a spike in every fifth level), and every act's rooms pay the same on average (D.roomEven). So
+   the deepest level there can be pays GOLD_TOP times what level 1 does: a quarter more. It was twice, and with prices
+   fixed and nothing eating savings (prices used to rise under them, level by level) the bank grew too fat.) */
+D.GOLD_TOP = 1.25; D.GOLD_HALF = 12;
+D.PRICE_LVL = 1;                   // what a weapon, a reroll and an upgrade cost is counted in kills' gold at this level, wherever you are
 /* What stands in the arena. A fight is one of three kinds, and the level's tenth is a boss of a kind that goes by
    the level's number, so you can build for it. hp, hit and gold are the whole encounter's, as multiples of one
    ordinary monster's, shared out among its members: a group has more life than a lone monster but hits less hard
@@ -82,10 +91,10 @@ D.ENC = {
   single: { w: 4, drop: 1 },
   pack:   { w: 4, n: [3, 5],  hp: 1.5, hit: 0.8, drop: 1.3 },
   swarm:  { w: 2, n: [6, 8],  hp: 1.8, hit: 0.7, drop: 1.6 },
-  elder:   { hp: 2.7, hit: 1.25, gold: 7 },                                    // one champion
+  elder:   { hp: 2.7, hit: 1.25, gold: 7.5 },                                    // one champion
   trio:    { n: 3, hp: 3.8, hit: 1.8, gold: 7.5 },                             // three lesser champions (they hit hard together, and less as they fall)
   warband: { hp: 1.9, hit: 1.0, gold: 4.5, n: 6, minHp: 1.2, minHit: 0.6, minGold: 3 },    // a champion and its followers
-  actboss: { hp: 2.2, hit: 0.75, gold: 10, n: 4, minHp: 0.8, minHit: 0.5, minGold: 2 },   // every fifth level: the act's own boss, and its guards
+  actboss: { hp: 2.2, hit: 0.75, gold: 6, n: 4, minHp: 0.8, minHit: 0.5, minGold: 1.5 },   // every fifth level: the act's own boss, and its guards
   cycle: ['actboss', 'trio', 'elder', 'elder', 'warband'],                     // by level, modulo five
 };
 D.LEECH_CAP = 5;                    // Life on kill, from every affix on the line together, is this much a kill at most
@@ -118,7 +127,7 @@ D.depth = lvl => 1 + (lvl - 1) / D.DEPTH;
    plain ones, stats and no effect, until each colour's node is held, and the early bosses have to fall to those. */
 D.WALL = { from: 3, mult: 10, arm: 16 };
 D.hp = (lvl, fight) => D.PACE * D.HP0 * Math.pow(D.depth(lvl), D.HP_P) * (1 + D.HP_STEP * fight) * (lvl >= D.WALL.from ? D.WALL.mult : 1);
-D.gold = lvl => D.PAY * D.GOLD0 * Math.pow(D.depth(lvl), D.GOLD_P);
+D.gold = lvl => D.PAY * D.GOLD0 * (1 + (D.GOLD_TOP - 1) * (lvl - 1) / (lvl - 1 + D.GOLD_HALF));
 /* the first two levels are the cursor's alone, and their enemies pull their blows: level 1 hits for two fifths, level 2
    for seven tenths. From level 3 they hit in earnest. */
 D.EARLY = [0.4, 1];
@@ -184,8 +193,13 @@ D.sockRoll = max => { const R = D.SOCK_ROLL, T = D.SOCK_STEP, cut = T.per * Math
 /* Upgrading (the tree's Upgrade node): a weapon on the line can be struck at for gold. Each strike adds one to three
    ranks (`gain`), up to `max`, and each rank is `dmg`% more damage. A strike costs `cost` kills' gold at your deepest
    level, times `step` for each rank the weapon already has. Scrapping the weapon gives half of it back. */
-D.UP = { max: 25, dmg: 3, cost: 6, step: 1.25, gain: [1, 3], back: 0.5 };
-D.MAKE = 5;                // making the weapon on the bench costs this many kills' gold at your deepest level
+D.UP = { max: 25, dmg: 3, cost: 16, step: 1.2, gain: [1, 3], back: 0.5 };
+/* what one Purse node starts a run with. It was the price of one bare weapon (16), which left a run that began deep
+   with a Head start holding empty weapons and no way to fill them. Now it sets a weapon up: the weapon (16), a
+   couple of rerolls for its sockets (26 each) and two or so skills from the Market (26 each). (It was 200 for a day: too much.) Without the Market it buys
+   no skills and goes on weapons, rerolls and Upgrade: which is the player's puzzle. */
+D.PURSE = 125;
+D.MAKE = 5;                // making the weapon on the bench costs this many kills' gold at level 1 (D.PRICE_LVL): the same all run
 D.FORGE_SECS = 1.5;        // and takes this long at the anvil: three blows of the hammer
 D.REROLL_CUT = 30;         // the most the tree's Spare stock can take off a reroll, in percent: it stays dearer than a new weapon
 
@@ -218,6 +232,13 @@ D.PRESTIGE_AT = 2;                  // the first run cannot be ended until it ha
    far ones that cost: the weapon three steps out is 8 cores and the last, twenty-two out, about 600. D.PRICE is the
    lever for which way a tree grows. */
 D.CORE = lvl => 1 + Math.floor(lvl / 2.5);
+/* Tailwind (the tree's eight nodes of that name; they stand where Head start stood). A fight won in under `secs`, counted
+   from its first blow landing (so a slow weapon that ends it in one is not left out), is an easy one, and after an easy one the next fight may be waved through: paid for, its drop rolled, counted as won, and
+   not fought. `odds` is by how many Tailwinds are held: [the chance the next fight is skipped, the chance a second
+   goes with it]. Never a boss, and never off one (a level always opens with a fight), and a skipped fight sets nothing off itself. The steps are sized so that each node
+   takes about the same share (8%) off the time an easy level takes: from about 14 seconds with none to about 7 with
+   all eight, when one fight is fought and two are not. */
+D.TAIL = { secs: 1, odds: [[0.12, 0], [0.27, 0], [0.45, 0], [0.65, 0], [0.90, 0], [1, 0.20], [1, 0.55], [1, 1]] };
 D.SKIP_PAY = 0.5;                   // levels a Head start passed over pay this share of their cores, with the first level the run clears above them
 /* Every big node's icon on the tree: one path on a 24 by 24 grid, drawn as a line in the node's colour. A node has
    no word on it; its name is in the tooltip. (The later weapons and sockets share the first ones' icons.) */
@@ -300,7 +321,7 @@ D.TREE_EFF = {
   reroll: { name: 'Spare stock',   amt: [8, 0],  col: FORGE, text: v => `Bench rerolls ${v}% cheaper`, sum: v => `bench rerolls ${v}% cheaper` },
   cheap:  { name: 'Haggling',      amt: [4, 0],  col: FORGE, text: v => `Buying skills ${v}% cheaper`, sum: v => `skills ${v}% cheaper` },
   drops:  { name: 'Keen eye',      amt: [12, 0],  col: FORGE, text: v => `+${v}% skill drops`, sum: v => `+${v}% skill drops` },
-  cAdd:   { name: 'Second line',   amt: [0, 1],  col: FORGE, text: () => 'Craft: add a second affix' },
+  cAdd:   { name: 'Add affix',     amt: [0, 1],  col: FORGE, text: () => 'Craft: add an affix (up to two)' },
   cThird: { name: 'Third line',    amt: [0, 1],  col: FORGE, text: () => 'Craft: add a third affix' },
   cMorph: { name: 'Transmuting',   amt: [0, 1],  col: FORGE, text: () => 'Craft: change it into another skill' },
   // the run
@@ -309,10 +330,10 @@ D.TREE_EFF = {
   cull:   { name: 'Cull',          amt: [0, 1],  col: LIFE, text: () => `Enemies at ${D.CULL}% life or less die` },
   might:  { name: 'Battle line',   amt: [0, 15], col: MISC, text: v => `+${v}% damage for every weapon` },
   gold:   { name: 'Prospecting',   amt: [10, 0], col: FORGE, text: v => `+${v}% gold`, sum: v => `+${v}% gold` },
-  purse:  { name: 'Purse',         amt: [1, 0],  col: MISC, text: v => `Start each run with gold for ${v} weapon${v === 1 ? '' : 's'}`, sum: v => `gold for ${v} weapon${v === 1 ? '' : 's'}` },
+  purse:  { name: 'Purse',         amt: [1, 0],  col: MISC, text: v => `Start each run with +${v * D.PURSE} gold`, sum: v => `+${v * D.PURSE} gold to start` },
   kitAll: { name: 'Full kit',      amt: [1, 0],  col: MISC, text: () => 'Start each run with one of each skill', sum: () => 'one of each skill to start' },
   kit:    { name: 'Provisions',    amt: [1, 0],  col: MISC, text: v => `Start each run with ${v} skill${v === 1 ? '' : 's'}`, sum: v => `${v} starting skill${v === 1 ? '' : 's'}` },
-  head:   { name: 'Head start',    amt: [5, 0],  col: MISC, text: v => `Start each run ${v} levels deeper`, sum: v => `${v} levels' head start` },
+  tail:   { name: 'Tailwind',      amt: [1, 0],  col: MISC, text: () => 'Skip some easy battles', more: 'Skip more easy battles', sum: v => { const o = D.TAIL.odds[Math.min(v, D.TAIL.odds.length) - 1]; return o[0] < 1 ? `${Math.round(o[0] * 100)}% to skip the battle after an easy one` : o[1] >= 1 ? 'skips two battles after an easy one' : `skips the battle after an easy one, ${Math.round(o[1] * 100)}% a second`; } },
 };
 /* the nodes: { id, x, y, eff, big, links: [the nodes it hangs from] }. 'start' is the middle, always held.
    Beside the start are the first two nodes: a troop post to the west and the first socket to the east. West from the post,
@@ -320,7 +341,7 @@ D.TREE_EFF = {
    the other, daggers and bows beyond, staves at the far end). East, the workshop: the five sockets and the second
    bench, by way of cheaper crafting, rerolls and skills, with the ways to craft a skill hanging off the path.
    North: Chill, then Stun one way and Shockwave the other. South: Burn, then Brittle one way and Life the other.
-   Four bridges (a run's provisions and head start) join the ends of north and south to the arms.
+   Four bridges (a run's starting gold) join the ends of north and south to the arms; the Head starts are branches off a Purse, never on a path.
    Skill tier is the tree's alone (the level you are on has no say): fifteen small nodes of a tier each, one or
    two on every path, and two notables of two. Rerolling the bench and buying skills are a node each, off the
    first post and the first socket, and so is each colour of skill (D.PLAIN). The whole tree is 130 nodes. */
@@ -357,10 +378,9 @@ D.TREE = [];
   leaf('UMT', 'UPG', 0, 60, 'uR'); leaf('UAD', 'F2', 0, 60, 'uG'); N('UHX', 0, 60, 'uB', ['UPG', 'F2'], 1);
   // starting gold, close to the middle and cheap: a Purse over Rerolls and one under Might (there are four more out on the bridges)
   N('PU1', -60, -112, 'purse', 'URR'); N('PU2', -60, 112, 'purse', 'UMT');
-  // and a head start, which begins a run that many levels in. It hangs from a Purse, here and on the bridges: a run that starts deep
-  // with no gold for a weapon cannot clear anything
-  N('HS1', -60, -152, 'head', 'PU1'); N('HS3', -100, -152, 'head', 'HS1');
-  N('HS2', -60, 152, 'head', 'PU2'); N('HS4', -100, 152, 'head', 'HS2');          // four of them here, five levels each: two beyond each Purse
+  // and one Head start beyond each (a run begins five levels in): three cores, and there from the first. Taken before
+  // there is the tree to stand five levels in it is a trap, and the player's to find out; the other six are out on the bridges
+  N('HS1', -60, -152, 'tail', 'PU1'); N('HS2', -60, 152, 'tail', 'PU2');
   // and on the other side, under Aid: a run begins with one of every kind of skill there is to drop
   N('KT1', 60, 112, 'kitAll', 'UAD');
   // west: the other five weapons, by way of the six types; the spine running back in from the tip carries two Battle lines
@@ -393,14 +413,38 @@ D.TREE = [];
   way('sr', 'SH', [], [190, 322], rep('life', 4), 'SL', 'life');
   // bridges, from the ends of north and south to the arms
   const bridge = (pre, from, to, effs) => { const last = way(pre, from, [], [at(to).x, at(to).y], effs); at(to).links.push(last); };
-  bridge('xa', 'NC', 'P2', ['purse', 'kit']); bridge('xb', 'NK', 'K2', ['purse', 'head', 'head', 'purse']);
-  bridge('xc', 'SG', 'P3', ['purse', 'kit']); bridge('xd', 'SL', 'K3', ['purse', 'head', 'head', 'purse']);
+  bridge('xa', 'NC', 'P2', ['purse']); bridge('xc', 'SG', 'P3', ['purse']);      // (each had a Provisions too, a single starting skill: too little to be worth a node, and gone)
+  /* and a Head start off each of these two bridges' Purses, to the inside, to take or leave (a run begins five levels in).
+     There were two on each branch beside the middle once, and for a day all four of those were out here: one stays beside
+     the middle (see PU1, PU2) and the second of each is here. */
+  const heads = (purse, from, to, side, id) => { const a = at(from), b = at(to), len = Math.hypot(b.x - a.x, b.y - a.y), p = at(purse); N(id, p.x - (b.y - a.y) / len * side * 44, p.y + (b.x - a.x) / len * side * 44, 'tail', purse); };
+  heads('xa1', 'NC', 'P2', -1, 'HS3'); heads('xc1', 'SG', 'P3', 1, 'HS4');
+  /* the two eastern bridges: two Purses. Their Head starts are not on the way across: they are a branch of two
+     off the first Purse, to the inside, to take or leave, like the ones beside the middle. (The ids are the ones these nodes had
+     when the Head starts stood on the bridge itself: xb1, xb4 the Purses, xb2, xb3 the Head starts, so an older tree keeps what it held.) */
+  const bridge2 = (pre, from, to, side) => {
+    const a = at(from), b = at(to), dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy), px = -dy / len * side, py = dx / len * side, on = k => [a.x + dx * k / 3, a.y + dy * k / 3];
+    N(pre + '1', ...on(1), 'purse', from); N(pre + '4', ...on(2), 'purse', pre + '1'); at(to).links.push(pre + '4');
+    N(pre + '2', on(1)[0] + px * 44, on(1)[1] + py * 44, 'tail', pre + '1'); N(pre + '3', on(1)[0] + px * 84, on(1)[1] + py * 84, 'tail', pre + '2');
+  };
+  bridge2('xb', 'NK', 'K2', 1); bridge2('xd', 'SL', 'K3', -1);
   // the deep-run notables, one off each bridge: damage for the whole line in the west, two tiers on every skill in the east
-  leaf('DM1', 'xa1', -25, -46, 'might'); leaf('DM2', 'xc1', -25, 46, 'might'); leaf('TR1', 'xb2', 25, -46, 'tier'); leaf('TR2', 'xd2', 25, 46, 'tier');
+  leaf('DM1', 'xa1', -25, -46, 'might'); leaf('DM2', 'xc1', -25, 46, 'might'); leaf('TR1', 'xb4', 25, -46, 'tier'); leaf('TR2', 'xd4', 25, 46, 'tier');
 })();
 D.NODE = {}; D.TREE.forEach(n => { D.NODE[n.id] = n; n.amt = D.TREE_EFF[n.eff].amt[n.big ? 1 : 0]; n.near = []; });
 D.TREE.forEach(n => n.links.forEach(l => { n.near.push(l); if (l !== 'start') D.NODE[l].near.push(n.id); }));      // near: every node it touches, either way
 D.TREE_START = D.TREE.filter(n => n.links.includes('start')).map(n => n.id);
+/* The tree is shown in pieces, so that a new player is not handed 136 nodes at once (js/ui.js treeStage). After the
+   first three comes the SQUARE: the nine in the block round the first weapon. When five of the nine are held the INNER tree
+   shows: everything that can be reached without passing one of the four POINTS (the second weapon, the second
+   socket, Life and Cull: the first big thing in each direction), and the four themselves. Holding any one of the
+   four opens the whole tree. Nothing here is a rule of the game: what is not shown cannot be clicked, and that is all. */
+D.TREE_SQUARE = ['F1', 'UPG', 'F2', 'URR', 'N0', 'UBY', 'UMT', 'UHX', 'UAD'];
+D.TREE_SQUARE_NEED = 5;      // of the nine: the first three and any two more. (All nine was a toll: 27 cores, little of it power, before the second weapon could even be seen.)
+D.TREE_POINTS = ['P1', 'K1', 'ULF', 'SH'];
+D.TREE_INNER = (() => { const seen = new Set(D.TREE_START), q = [...D.TREE_START];
+  while (q.length) { const id = q.shift(); if (D.TREE_POINTS.includes(id)) continue; for (const x of D.NODE[id].near) if (x !== 'start' && !seen.has(x)) { seen.add(x); q.push(x); } }
+  return [...seen]; })();
 // dist: how many steps a node is from the middle one
 (function () { const todo = D.TREE_START.slice(); for (const id of todo) D.NODE[id].dist = 0; while (todo.length) { const n = D.NODE[todo.shift()]; for (const y of n.near) if (y !== 'start' && D.NODE[y].dist == null) { D.NODE[y].dist = n.dist + 1; todo.push(y); } } })();
 D.isKey = n => /^u[A-Z]/.test(n.eff);        // the unlocks round the middle
@@ -537,6 +581,15 @@ D.ACTS = [
     boss: M('Vulkar, the Forge Tyrant', 'fiend', 'hell', 1.2, 1.7, 1.8) },
 ];
 D.ACT_LEVELS = 5;
+/* What an ordinary room pays goes by the life in it: a heavy monster more than a light one, a pack or a swarm more
+   than one alone. But the acts' monsters are not equally heavy, so an act's rooms paid up to an eighth more than the
+   first act's did, and a level's gold went by which act it was in as well as how deep. D.roomEven takes that out:
+   it is what a room's gold is multiplied by so that an average room pays the same in every act as in the first
+   (the average over the three kinds of room as G.spawn picks them). Within an act a room still pays by its life. */
+D.roomMean = act => { const E = D.ENC, ms = act.mobs, hp = l => l.reduce((s, m) => s + m.hp, 0), small = ms.filter(m => m.hp <= 0.9);
+  const one = ms.reduce((s, m) => s + m.hp * m.hp, 0) / hp(ms), pack = hp(ms) / ms.length * E.pack.hp, swarm = hp(small) / small.length * E.swarm.hp;      // a lone monster is picked by its life, the others evenly
+  return (E.single.w * one + E.pack.w * pack + E.swarm.w * swarm) / (E.single.w + E.pack.w + E.swarm.w); };
+D.roomEven = act => act.even || (act.even = D.roomMean(D.ACTS[0]) / D.roomMean(act));
 D.act = lvl => D.ACTS[Math.floor((lvl - 1) / D.ACT_LEVELS) % D.ACTS.length];
 D.lap = lvl => Math.floor((lvl - 1) / (D.ACT_LEVELS * D.ACTS.length));          // how many times round the five acts
 D.FIRST_GOLD = { first: 2, again: 0.5 };      // a fight pays this many times its gold the first time it is won in a run, and this many whenever it is won again: gold comes from getting deeper, not from the same ground over and over

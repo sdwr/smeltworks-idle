@@ -22,7 +22,9 @@ function boot() {
   UI.bind();
   UI.render();
   SW.telemetry.init();
-  if (!saved) UI.welcome(); else if (away) UI.offline(away); else UI.playDataNotice();      // (each of them carries the play-data switch, until it has been seen)
+  // (a returning player is told what has changed, once: with the gold from their time away if there is any, or in a box of its own)
+  if (/[?&]notes\b/.test(location.search)) UI.whatsNew(true); else
+  if (!saved) UI.welcome(); else if (away) UI.offline(away); else if (!UI.whatsNew()) UI.playDataNotice();      // (each of them carries the play-data switch, until it has been seen)
   const ico = document.createElement('link'); ico.rel = 'icon'; ico.href = SW.sprites.url('hammer', 'ember', 2); document.head.appendChild(ico);
 
   let last = performance.now(), saveT = 0, hiddenAt = 0;

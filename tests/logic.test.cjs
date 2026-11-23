@@ -91,24 +91,24 @@ test('a new game has the cursor alone: the first point is the weapon in the midd
   assert.ok(G.beginRun()); assert.equal(S.posts.length, 1); assert.equal(S.bench.made, false, 'the bench is bare until a weapon is made'); assert.equal(forge(SW).sockets.length, 0); assert.equal(G.skillsOn(), false);
   // after the first prestige a run can be ended at any time, even at level 1 and for nothing. What is bought stays bought
   assert.equal(S.maxLevel, 1); assert.ok(G.canPrestige()); assert.ok(G.prestige()); assert.equal(G.cores(), 0); assert.equal(S.runs, 2);
-  assert.ok(G.unallocate('F1'), 'a node bought in an earlier visit can be handed back too, for what it costs'); assert.equal(G.cores(), 1); assert.equal(G.spent(), 0); assert.ok(G.allocate('F1')); assert.equal(G.cores(), 0); assert.ok(G.beginRun()); assert.equal(S.posts.length, 1);
+  assert.equal(G.canRemove('F1'), false); assert.equal(G.unallocate('F1'), false, 'the first weapon is never handed back'); assert.equal(G.cores(), 0); assert.equal(G.spent(), 1); assert.ok(G.beginRun()); assert.equal(S.posts.length, 1);
   S.gold = 1e9; assert.equal(G.buySkill(), false); S.gold = 0;
   clears = play(SW, 900, { until: 2, noPrestige: 1 });
   assert.ok(S.posts[0].unit && S.posts[0].unit.sockets.length === 0, 'a bare weapon stands on the post'); assert.ok(S.maxLevel >= 3, 'and with it level 2 falls'); assert.equal(S.stats.drops, 0); assert.ok(G.runCores() >= 2, 'a core a level');
   // prestige again: two cores buy the socket, or Upgrade
   S.run.earn = 2; assert.ok(G.prestige()); assert.equal(G.spent(), 1); assert.equal(G.cores(), 2); assert.equal(G.allocate('w1'), false, 'nothing else touches the weapon'); assert.equal(G.allocate('UHX'), false);
   assert.ok(G.canAllocate('UPG') && G.canAllocate('F2')); assert.ok(G.allocate('UPG')); assert.equal(G.cores(), 0); assert.equal(G.allocate('F2'), false, 'two cores, one of them');
-  assert.ok(G.unallocate('UPG'), 'a slip can be handed back, while the tree is still open'); assert.equal(G.cores(), 2); assert.ok(G.allocate('F2')); assert.equal(G.cores(), 0);
+  assert.equal(G.unallocate('UPG'), false, 'nor is either of the two beside it: both must be had anyway'); assert.equal(G.cores(), 0); delete S.tree.UPG; S.bank = 2; assert.ok(G.allocate('F2')); assert.equal(G.cores(), 0);
   // Upgrade and the socket are the first two after the weapon: nothing else can be bought until both are held, whatever it touches
   S.bank = 11; assert.deepEqual(Array.from(D.TREE_FIRST), ['UPG', 'F2']); assert.equal(G.nodeCost('UHX'), 4, 'a colour of skill');
   for (const id of ['UHX', 'UBY', 'UAD', 'e1', 'N0']) { assert.ok(D.NODE[id].near.includes('F2'), id); assert.ok(G.gated(id), id); assert.equal(G.touches(id), false); assert.equal(G.allocate(id), false, id + ' waits for Upgrade'); }
   assert.equal(G.gated('UPG'), false); assert.ok(G.allocate('UPG')); assert.ok(G.firstHeld()); assert.equal(G.gated('UHX'), false);
   assert.ok(G.allocate('UHX')); assert.equal(G.nodeCost('UAD'), 4, 'and buying one did not move the others'); assert.equal(G.nodeCost('e1'), 5, 'the first skill tier'); assert.ok(G.allocate('e1')); assert.equal(G.cores(), 0);
-  assert.equal(G.unallocate('F1'), false); assert.equal(G.unallocate('F2'), false, 'they stay while anything hangs from them'); assert.equal(G.unallocate('UPG'), false, 'and so does Upgrade, though nothing held hangs from it: the two come first');
-  assert.ok(G.unallocate('e1')); assert.ok(G.unallocate('UHX')); assert.equal(G.cores(), 9, 'each for what it cost'); assert.ok(G.unallocate('UPG')); assert.equal(G.cores(), 11); S.bank = 9;
+  assert.equal(G.unallocate('F1'), false); assert.equal(G.unallocate('F2'), false, 'the first three stay'); assert.equal(G.unallocate('UPG'), false);
+  assert.ok(G.unallocate('e1')); assert.ok(G.unallocate('UHX')); assert.equal(G.cores(), 9, 'each for what it cost'); for (const id of ['F1', 'F2', 'UPG']) { assert.equal(G.canRemove(id), false, id + ' stays even with nothing else held'); assert.equal(G.unallocate(id), false); } assert.equal(G.cores(), 9); delete S.tree.UPG; S.bank = 9;
   // a save that bought past them when it could keeps what it has, and buys the missing one before anything more
   S.tree.UHX = 1; assert.ok(G.gated('UAD')); assert.equal(G.allocate('UAD'), false); assert.ok(G.canAllocate('UPG')); assert.ok(G.canRemove('UHX')); delete S.tree.UHX;
-  assert.ok(G.unallocate('F2')); assert.ok(G.unallocate('F1'), 'and the weapon, bought two runs ago, once nothing hangs from it'); assert.equal(G.cores(), 12); assert.ok(G.allocate('F1')); assert.ok(G.allocate('F2')); S.bank = 0;
+  assert.equal(G.unallocate('F2'), false); assert.equal(G.unallocate('F1'), false); assert.equal(G.cores(), 9); S.bank = 0;
   // the third run: one post, a weapon of one socket, and skills from the first fights
   assert.ok(G.beginRun()); assert.equal(S.posts.length, 1); assert.ok(G.skillsOn()); assert.equal(forge(SW).sockets.length, 1);
   play(SW, 60, { noPrestige: 1 }); assert.ok(S.stats.drops >= 1, 'skills drop now'); assert.ok(S.posts[0].unit, 'and a weapon stands on the post');
@@ -124,7 +124,16 @@ test('making a weapon costs gold, equipping it is free and needs an empty post; 
   const SW = begun(2), G = SW.game, S = G.S;
   for (let i = 0; i < 30; i++) { const b = G.rollBench(); assert.equal(b.q, 1); assert.equal(G.unitName(b), SW.data.WEAPONS[b.type].name, 'its name is its type'); } assert.equal(SW.data.QUALITY, undefined);
   const old = JSON.parse(JSON.stringify(S)); old.bench.q = 1.13; assert.equal(G.patch(old).bench.q, 1, 'an old save\'s Prime is the plain thing now');
-  const D = SW.data, cost = G.makeCost(); assert.equal(D.MAKE, 5); assert.equal(cost, Math.ceil(5 * D.gold(1)), 'five kills\' gold at your deepest level'); S.maxLevel = 20; assert.equal(G.makeCost(), Math.ceil(5 * D.gold(20))); S.maxLevel = 1;
+  const D = SW.data, cost = G.makeCost(); assert.equal(D.MAKE, 5); assert.equal(cost, Math.ceil(5 * D.gold(1)), 'five kills\' gold at level 1'); S.maxLevel = 20; assert.equal(G.makeCost(), cost, 'and the same however deep you are'); S.maxLevel = 1;
+  // gold grows a little with depth and never to twice what level 1 pays; prices do not grow at all
+  assert.equal(D.PRICE_LVL, 1); assert.deepEqual([D.GOLD_TOP, D.GOLD_HALF], [1.25, 12]); near(D.gold(13) / D.gold(1), 1.125, 1e-9); assert.ok(D.gold(500) / D.gold(1) < 1.25 && D.gold(500) / D.gold(1) > 1.24);
+  assert.deepEqual(['add', 'third'].map(k => G.craftCost(k)), [52, 156], 'an added affix is dear'); assert.equal(G.benchCost(), 26, 'a reroll of the weapon is not');
+  // every boss pays the same, and no level, however deep, pays twice what level 1 does (all ten fights, on average)
+  { const E = D.ENC, pay = k => E[k].gold + (E[k].minGold || 0); for (const k of ['elder', 'trio', 'warband', 'actboss']) assert.equal(pay(k), 7.5, k);
+    const A = load(3), GA = A.game; GA.S.posts = [{ unit: null }]; GA.S.run.kills = 1;
+    const tot = lvl => { let t = 0; for (let n = 0; n < 150; n++) for (let f = 0; f < D.FIGHTS; f++) { GA.S.level = GA.S.maxLevel = lvl; GA.S.fight = f; GA.spawn(); t += GA.F.es.reduce((s, e) => s + e.gold, 0); } return t / 150; };
+    const one = tot(1); for (const l of [5, 10, 21, 45, 99, 100, 1000]) { const r = tot(l) / one, k = D.gold(l) / D.gold(1); assert.ok(r > 1 && r < 2.06, 'level ' + l + ' pays ' + r.toFixed(2) + ' times level 1'); near(r, k, 0.06 * k, 'level ' + l + ' pays as its kills do, whichever act it is in:'); }
+    near(D.roomEven(D.ACTS[0]), 1, 1e-12); for (const a of D.ACTS) near(D.roomMean(a) * D.roomEven(a), D.roomMean(D.ACTS[0]), 1e-9); } for (let l = 1; l < 80; l++) assert.ok(D.gold(l + 1) > D.gold(l));
   // the bench is bare: nothing to equip, nothing to socket; making costs gold and puts a new weapon on it
   S.bench = G.blankBench(); assert.equal(G.benchMade(), false); assert.equal(G.equip(), false, 'nothing to equip'); const loose = gem(SW, 'pr'); assert.equal(G.autoSocket(loose.id), false);
   assert.equal(S.gold, 0); assert.equal(G.canMake(), false); assert.equal(G.make(), false, 'not with no gold'); S.gold = cost - 1; assert.equal(G.make(), false); S.gold = cost + 3; assert.ok(G.make()); assert.equal(S.gold, 3); assert.ok(G.benchMade()); assert.equal(S.posts[0].unit, null, 'made is not equipped');
@@ -136,9 +145,10 @@ test('making a weapon costs gold, equipping it is free and needs an empty post; 
   assert.equal(S.posts[0].lvl, undefined); assert.equal(S.posts[0].unit.lvl, undefined);
   S.gold = 1e9; for (const gone of ['levelUp', 'lvlPrice', 'buyStoke', 'stokeCost']) assert.equal(G[gone], undefined, gone);
   assert.ok(G.sell(0)); assert.equal(S.posts[0].unit, null); assert.equal(S.gold, 1e9, 'a weapon with no skills in it pays nothing back');
-  // Purse nodes: a run begins with gold for that many weapons, at what they cost where it begins
-  assert.equal(D.TREE.filter(n => n.eff === 'purse').length, 8); assert.equal(D.NODE.PU1.links.join(), 'URR'); assert.equal(D.NODE.PU2.links.join(), 'UMT'); assert.equal(G.nodeCost('PU1'), 3, 'starting gold is cheap'); for (const n of D.TREE) if (n.eff === 'purse' || n.eff === 'head') assert.equal(G.nodeCost(n.id), 3, n.id + ': every Purse and Head start is 3, wherever it is'); for (const n of D.TREE) if (n.eff === 'purse' || n.eff === 'head') S.tree[n.id] = 1; S.best = 60; S.maxLevel = 9; G.prestige(); G.beginRun();
-  assert.ok(S.maxLevel > 1); assert.equal(S.gold, 8 * G.makeCost(), 'gold for a weapon from each Purse'); S.gold = 0;
+  // Purse nodes: a run begins with D.PURSE gold from each, enough to set a weapon up (the weapon, a couple of rerolls, a couple of skills)
+  assert.equal(D.PURSE, 125); assert.ok(D.PURSE >= G.makeCost() + 2 * G.benchCost() + 2 * G.buyCost(), 'a weapon, two rerolls, two skills');
+  assert.equal(D.TREE.filter(n => n.eff === 'purse').length, 8); assert.equal(D.NODE.PU1.links.join(), 'URR'); assert.equal(D.NODE.PU2.links.join(), 'UMT'); assert.equal(G.nodeCost('PU1'), 3, 'starting gold is cheap'); for (const n of D.TREE) if (n.eff === 'purse' || n.eff === 'tail') assert.equal(G.nodeCost(n.id), 3, n.id + ': every Purse and Tailwind is 3, wherever it is'); for (const n of D.TREE) if (n.eff === 'purse') S.tree[n.id] = 1; S.best = 60; S.maxLevel = 9; G.prestige(); G.beginRun();
+  assert.equal(S.maxLevel, 1, 'a run begins at level 1: there is no Head start any more'); assert.equal(S.gold, 8 * D.PURSE, 'a Purse of gold from each'); S.gold = 0;
 });
 test('nothing is levelled: a weapon and the cursor are the same at any depth, and only a skill\'s secondary affixes grow', () => {
   const SW = rich(), G = SW.game, S = G.S, D = SW.data;
@@ -205,7 +215,7 @@ test('rerolling the bench: only the type, or only the sockets (the whole weapon 
   const SW = rich(), G = SW.game, S = G.S, D = SW.data;
   G.S.gold = 1e9; const b0 = G.S.bench; for (const k of ['type', 'socks']) assert.equal(G.benchReroll(k), false, 'not until the Rerolls node is held'); assert.equal(G.S.bench, b0); assert.equal(G.S.gold, 1e9); assert.equal(SW.data.NODE.URR.eff, 'uReroll'); G.S.tree.URR = 1;
   S.bench = bench(SW, 'axe', 'rb');
-  const part = G.benchCost(); assert.ok(part > G.makeCost(), 'keeping the half you like costs more than a whole new weapon'); assert.equal(part, Math.ceil(D.MAKE * D.gold(S.maxLevel) * D.CRAFT.part)); assert.equal(D.CRAFT.part, 1.6); assert.equal(G.benchReroll('all'), false, 'there is no rerolling all of it: that is Make');
+  const part = G.benchCost(); assert.ok(part > G.makeCost(), 'keeping the half you like costs more than a whole new weapon'); assert.equal(part, Math.ceil(D.MAKE * D.gold(1) * D.CRAFT.part)); assert.equal(D.CRAFT.part, 1.6); assert.equal(G.benchReroll('all'), false, 'there is no rerolling all of it: that is Make');
   const red = gem(SW, 'nova'), blue = gem(SW, 'frost'); G.socket(red.id, G.BENCH, 0); G.socket(blue.id, G.BENCH, 1);
   let gold = S.gold;
   for (let i = 0; i < 20; i++) { const was = S.bench.type; assert.ok(G.benchReroll('type')); assert.notEqual(S.bench.type, was); }
@@ -386,10 +396,10 @@ test('Upgrade: with its node, gold strikes a weapon on the line up a rank, ten a
   const u = S.posts[0].unit, dmg0 = G.X.units[0].dmg; S.gold = 1e9;
   assert.equal(G.canUpgrade(0), false, 'not without the node'); assert.equal(G.upgrade(0), false); assert.equal(S.gold, 1e9); assert.equal(G.features().upgrade, undefined);
   S.tree.UPG = 1; G.recompute(); assert.equal(G.features().upgrade, 1);
-  assert.equal(G.upCost(u), Math.ceil(U.cost * D.gold(S.maxLevel))); S.gold = G.upCost(u) - 1; assert.equal(G.upgrade(0), false, 'not without the gold'); assert.equal(G.upgrade(1), false, 'nor an empty slot');
+  assert.equal(G.upCost(u), Math.ceil(U.cost * D.gold(1))); S.gold = G.upCost(u) - 1; assert.equal(G.upgrade(0), false, 'not without the gold'); assert.equal(G.upgrade(1), false, 'nor an empty slot');
   // a strike adds one to three ranks, each 3% more damage, and the next costs more for every rank the weapon has
   S.gold = 1e9; const c1 = G.upCost(u); G.ev.length = 0; assert.ok(G.upgrade(0)); const g1 = u.up; assert.ok(g1 >= 1 && g1 <= 3); assert.equal(G.ev.find(e => e.t === 'upgrade').gain, g1); assert.equal(S.gold, 1e9 - c1);
-  near(G.X.units[0].dmg, dmg0 * (1 + 0.03 * g1), 1e-9); assert.equal(G.upCost(u), Math.ceil(U.cost * D.gold(S.maxLevel) * Math.pow(U.step, g1)));
+  near(G.X.units[0].dmg, dmg0 * (1 + 0.03 * g1), 1e-9); assert.equal(G.upCost(u), Math.ceil(U.cost * D.gold(1) * Math.pow(U.step, g1)));
   near(G.X.cursor.dmg, D.CURSOR.dmg, 1e-9, 'the cursor is not a weapon:');
   let paid = c1, strikes = 1; const gains = { [g1]: 1 }; while (u.up < U.max) { const b = u.up; paid += G.upCost(u); assert.ok(G.upgrade(0)); strikes++; const g = u.up - b; assert.ok(g >= 1 && g <= 3, 'a strike gave ' + g); gains[g] = (gains[g] || 0) + 1; }
   assert.equal(u.up, 25, 'never past the top'); assert.ok(strikes >= 9 && strikes <= 25, strikes + ' strikes to the top'); near(G.X.units[0].dmg, dmg0 * 1.75, 1e-9); assert.equal(G.upgrade(0), false, 'twenty-five is all'); assert.equal(S.gold, 1e9 - paid);
@@ -591,8 +601,7 @@ test('prestige ends the run and opens the tree; nothing moves until the next run
   const cost = ['UPG', 'w1', 'P1'].map(id => { const c = G.nodeCost(id); assert.ok(G.allocate(id), id); return c; }); assert.equal(cost.join(), '2,3,8'); assert.equal(G.spent(), 5); assert.equal(G.cores(), 40 - 13);
   assert.equal(G.allocate('w1'), false, 'not twice'); assert.equal(G.treeVal('post2'), 1); assert.equal(G.treeVal('swd'), D.TREE_EFF.swd.amt[0]);
   // handing one back, while the tree is open: only if nothing hangs from it, and for what it costs
-  assert.equal(G.canRemove('w1'), false); assert.equal(G.unallocate('w1'), false, 'the weapon hangs from it'); assert.ok(G.unallocate('P1')); assert.ok(G.unallocate('w1')); assert.ok(G.unallocate('UPG')); assert.equal(G.spent(), 2); assert.equal(G.cores(), 40);
-  assert.ok(G.canRemove('F2')); assert.ok(G.unallocate('F2'), 'one that an earlier run bought comes back as well'); assert.equal(G.cores(), 42); assert.equal(G.unallocate('F2'), false, 'not twice'); assert.ok(G.allocate('F2')); assert.equal(G.cores(), 40); assert.equal(G.clearTree, undefined, 'one at a time: the whole tree is not cleared at a stroke');
+  assert.equal(G.canRemove('w1'), false); assert.equal(G.unallocate('w1'), false, 'the weapon hangs from it'); assert.ok(G.unallocate('P1')); assert.ok(G.unallocate('w1'), 'one that an earlier run bought comes back as well'); assert.equal(G.unallocate('w1'), false, 'not twice'); const back = G.cores(); assert.equal(G.unallocate('UPG'), false, 'but not the first three'); assert.equal(G.canRemove('F2'), false); assert.equal(G.unallocate('F2'), false); assert.equal(G.cores(), back); assert.equal(G.spent(), 3); delete S.tree.UPG; S.bank = 40; assert.equal(G.clearTree, undefined, 'one at a time: the whole tree is not cleared at a stroke');
   S.bank = 12; assert.equal(G.allocate('UPG') && G.allocate('w1') && G.allocate('P1'), false, 'not without the cores'); assert.equal(G.cores(), 7); assert.ok(G.touches('P1') && !G.canAllocate('P1')); S.bank = 40 - 5;
   // the run begins: the line the tree gives, and the tree is fixed
   for (const id of ['P1', 'UHX']) assert.ok(G.allocate(id));
@@ -617,7 +626,7 @@ test('prestige ends the run and opens the tree; nothing moves until the next run
 const hold = (SW, ...effs) => { const G = SW.game; for (const n of SW.data.TREE) if (effs.includes(n.eff)) G.S.tree[n.id] = 1; G.recompute(); };
 test('the tree: hubs where paths meet, themed small nodes between them, a notable one step off the path', () => {
   const SW = rich(), G = SW.game, S = G.S, D = SW.data;
-  assert.equal(D.TREE.length, 138); assert.equal(new Set(D.TREE.map(n => n.id)).size, 138);
+  assert.equal(D.TREE.length, 136); assert.equal(new Set(D.TREE.map(n => n.id)).size, 136);
   assert.equal(D.TREE.filter(n => n.eff === 'bench2').length, 1); assert.equal(D.TREE.filter(n => n.eff === 'tier' && !n.big).length, 15); assert.equal(D.TREE.filter(n => n.eff === 'tier' && n.big).length, 2); assert.equal(D.TREE.filter(n => n.eff === 'might').length, 4, 'two on the bridges, two on the west spine where the seventh and eighth weapons were'); assert.equal(D.TREE.filter(n => n.eff === 'gold').length, 4);
   for (const n of D.TREE) {
     const E = D.TREE_EFF[n.eff]; assert.ok(E, n.id); assert.ok(n.amt > 0, n.id); assert.ok(typeof E.text(n.amt) === 'string' && E.text(n.amt).length > 5, n.id);
@@ -635,7 +644,7 @@ test('the tree: hubs where paths meet, themed small nodes between them, a notabl
   for (const w of ['swd', 'ham', 'axe', 'dag', 'bow', 'stf']) { const big = D.TREE.find(n => n.eff === w + 'N'); assert.ok(big && big.near.length === 1 && D.NODE[big.near[0]].eff === w, w + ': its notable hangs off its own path'); }
   for (const h of ['chill', 'stun', 'nova', 'burn', 'brit']) { assert.equal(D.TREE.filter(n => n.eff === h + 'N').length, 1, h + ' has its notable'); assert.ok(!D.TREE.some(n => n.eff === h) && !D.TREE_EFF[h], h + ' has no small nodes: the paths are weapon damage'); }
   assert.equal(D.TREE.filter(n => n.eff === 'dmg').length, 14); assert.equal(D.TREE_EFF.dmg.amt[0], 5); assert.equal(D.NODE.SH.eff, 'cull'); assert.equal(D.NODE.SH.y, 170);
-  for (const p of D.TREE.filter(n => n.eff === 'post2')) for (const x of p.links) assert.ok(['swd', 'ham', 'axe', 'dag', 'bow', 'stf', 'kit', 'tier'].includes(D.NODE[x].eff), p.id + ' is reached through ' + D.NODE[x].eff);
+  for (const p of D.TREE.filter(n => n.eff === 'post2')) for (const x of p.links) assert.ok(['swd', 'ham', 'axe', 'dag', 'bow', 'stf', 'purse', 'tier'].includes(D.NODE[x].eff), p.id + ' is reached through ' + D.NODE[x].eff);
   for (const c of D.CRAFTS) if (c.node) assert.ok(D.TREE.some(n => n.eff === c.node && n.big), c.id + ' has its node');
   // prices: the first weapon 1, the two beside it 2; unlocks, weapons, sockets and tiers cost more for each already held; a small node by how far out it is
   const fresh = load(1), G1 = fresh.game, P = D.PRICE; G1.S.alloc = true; G1.S.bank = 1e9;
@@ -655,7 +664,7 @@ test('the tree: hubs where paths meet, themed small nodes between them, a notabl
   const got = n => { S.bank = n; S.alloc = true; allocTree(SW); return G.spent(); };
   assert.equal(got(2), 3, 'Upgrade, which comes before anything else'); assert.ok(G.has('UPG')); assert.equal(G.cores(), 0); assert.equal(got(4), 3, 'not enough for the Market: it saves'); assert.equal(G.cores(), 4); assert.equal(got(5), 4); assert.ok(G.has('UBY')); assert.equal(G.cores(), 0); got(60); assert.ok(G.has('ULF') && G.has('UPG'), 'Life and Upgrade soon after');
   got(400); assert.ok(G.treeVal('post2') >= 2 && G.treeVal('sock2') >= 1 && G.treeVal('tier') >= 4, 'weapons, sockets and tiers together: ' + [G.treeVal('post2'), G.treeVal('sock2'), G.treeVal('tier')]); assert.ok(G.has('UPG'));
-  assert.equal(got(1e6), 138, 'and with cores to burn, the whole tree');
+  assert.equal(got(1e6), 136, 'and with cores to burn, the whole tree');
   assert.ok(G.has('UBY') && G.has('URR')); assert.equal(D.NODE.URR.near.join(), 'UPG,PU1'); assert.equal(D.NODE.UBY.links.join(), 'F2'); assert.equal(D.NODE.CPK, undefined, 'there is no Standing order: which skill is bought goes by the bag');
   // the whole tree, in play
   S.best = 150; assert.ok(G.beginRun());
@@ -665,25 +674,64 @@ test('the tree: hubs where paths meet, themed small nodes between them, a notabl
   S.bench = bench(SW, 'sword', ''); G.equip(); near(G.X.units[0].dmg, D.WEAPONS.sword.dmg * 2.3, 1e-9, 'four Battle lines and fourteen Whetstones:'); near(G.X.cursor.dmg, D.CURSOR.dmg, 1e-9, 'the cursor is not a weapon:'); G.sell(0); S.bag = S.bag.filter(g => g.nw && g.lvl === G.dropLevel(S.maxLevel)).slice(0, D.TREE.filter(n => n.eff === 'kit').length);
   const sum = eff => D.TREE.filter(n => n.eff === eff).reduce((x, n) => x + n.amt, 0);
   near(G.X.dropMult, 1 + sum('drops') / 100); assert.equal(G.X.lifeMax, D.LIFE + sum('life')); assert.equal(sum('life'), 300, 'the tree has three hundred Life in all');
-  assert.equal(S.maxLevel, 1 + sum('head')); assert.equal(sum('head'), 40, 'eight Head starts of five levels: four beside the middle, four on the bridges'); assert.equal(['HS1', 'HS2', 'HS3', 'HS4'].map(id => D.NODE[id].links.join()).join(' '), 'PU1 PU2 HS1 HS2'); assert.ok(['HS1', 'HS2', 'HS3', 'HS4'].every(id => G.nodeCost(id) === 3)); assert.equal(S.bag.length, sum('kit')); assert.ok(S.bag.every(g => g.lvl === G.dropLevel(S.maxLevel) && g.nw));
-  assert.equal(G.buyCost(), Math.ceil(D.buyCost(S.maxLevel) * (1 - sum('cheap') / 100)));
-  assert.equal(G.benchCost(), Math.ceil(D.MAKE * D.gold(S.maxLevel) * D.CRAFT.part * (1 - sum('reroll') / 100))); assert.ok(sum('reroll') <= D.REROLL_CUT); assert.ok(G.benchCost() > G.makeCost(), 'still dearer than a new weapon, with every Spare stock held');
-  // a head start reaches no deeper than you have ever cleared
-  S.best = 4; assert.equal(G.headLevels(), 3);
-  // Head start: the run begins that many levels in, and the levels passed over are paid for with the first one it clears
-  const H = begun(5), GH = H.game, SH = H.game.S; assert.equal(D.NODE.HS1.eff, 'head'); assert.equal(D.NODE.HS1.links.join(), 'PU1', 'it hangs from a Purse'); assert.equal(GH.nodeCost('HS1'), 3, 'it is cheap');
-  for (const n of D.TREE) if (n.eff === 'head') assert.ok(n.near.some(x => D.NODE[x].eff === 'purse' || (D.NODE[x].eff === 'head' && D.NODE[x].near.some(y => D.NODE[y].eff === 'purse'))), n.id + ': a head start is reached through a Purse');
-  for (const end of ['NK', 'K2', 'SL', 'K3']) assert.ok(D.NODE[end].near.every(x => D.NODE[x].eff !== 'head'), end + ': no bridge opens on a head start');
-  SH.tree.HS1 = 1; SH.best = 30; SH.maxLevel = 9; assert.ok(GH.prestige()); assert.ok(GH.beginRun()); assert.equal(SH.level, 6, 'five levels in'); assert.equal(SH.maxLevel, 6); assert.equal(SH.run.paid, 0); assert.equal(GH.runCores(), 0, 'nothing for them yet');
-  H.data.HP0 = 0.0001; let hsPaid = null; for (let i = 0; i < 6000 && !hsPaid; i++) { const e = GH.alive()[0]; if (e) { GH.F.cdC = 0; GH.click(e.x, e.y); } GH.update(0.02); for (const ev of GH.ev) if (ev.t === 'cleared') hsPaid = ev; GH.ev.length = 0; }
-  assert.equal(hsPaid.level, 6); assert.equal(D.SKIP_PAY, 0.5); assert.equal(hsPaid.pay, D.CORE(6) + Math.floor([1, 2, 3, 4, 5].reduce((x, l) => x + D.CORE(l), 0) / 2), 'level 6, and half of the five it passed over'); assert.equal(hsPaid.pay, 7); assert.equal(GH.runCores(), hsPaid.pay); assert.equal(SH.run.paid, 6);
-  // a head start too deep for the line is no trap: driven back, the run is paid for whatever it does clear
-  const T = begun(6), GT = T.game, ST = T.game.S; ST.tree.HS1 = 1; ST.best = 30; ST.maxLevel = 9; assert.ok(GT.prestige()); assert.ok(GT.beginRun()); assert.equal(ST.level, 6); T.data.HP0 = 0.0001;
-  const clearAt = lvl => { ST.level = lvl; ST.fight = 9; GT.spawn(); let done = null; for (let i = 0; i < 6000 && !done; i++) { const e = GT.alive()[0]; if (e) { GT.F.cdC = 0; GT.click(e.x, e.y); } GT.update(0.02); done = GT.ev.find(ev => ev.t === 'leveldone'); GT.ev.length = 0; } return done; };
-  let d3 = clearAt(3); assert.equal(d3.level, 3); assert.equal(d3.pay, D.CORE(3) + Math.floor((D.CORE(1) + D.CORE(2)) / 2), 'level 3, and half of the two under it'); assert.equal(ST.maxLevel, 6, 'no deeper than it began');
-  assert.equal(clearAt(4).pay, D.CORE(4)); assert.equal(clearAt(3).pay, 0, 'not twice'); assert.equal(GT.runCores(), D.CORE(3) + 1 + D.CORE(4)); assert.equal(clearAt(6).pay, D.CORE(6) + Math.floor(D.CORE(5) / 2), 'and level 6 in full when it gets there, with half of the one it jumped'); assert.equal(ST.maxLevel, 7);
-  // a run saved before this, with a Head start's levels still owing, is owed them; one already under way has been paid to where it stands
-  let old = JSON.parse(JSON.stringify(ST)); delete old.run.paid; old.run.skip = 5; old.maxLevel = 6; assert.equal(GT.patch(old).run.paid, 0); old = JSON.parse(JSON.stringify(ST)); delete old.run.paid; old.maxLevel = 12; const P12 = GT.patch(old); assert.equal(P12.run.paid, 11); assert.equal(P12.run.skip, undefined);
+  assert.equal(S.maxLevel, 1); assert.equal(sum('head'), 0, 'Head start is gone'); assert.equal(sum('tail'), 8, 'eight Tailwinds stand where it stood: two beside the middle, one off each western bridge, two off each eastern'); assert.equal(['HS1', 'HS2', 'HS3', 'HS4'].map(id => D.NODE[id].links.join()).join(' '), 'PU1 PU2 xa1 xc1', 'one beside the middle off each Purse, one off each western bridge'); assert.ok(['HS1', 'HS2', 'HS3', 'HS4'].every(id => G.nodeCost(id) === 3)); assert.equal(sum('kit'), 0); assert.ok(S.bag.every(g => D.tier(g.lvl) >= 1 && D.tier(g.lvl) <= 5 && (g.lvl - 1) % D.TIER_LVLS === 0 && g.nw));
+  assert.equal(G.buyCost(), Math.ceil(D.buyCost(1) * (1 - sum('cheap') / 100)));
+  assert.equal(G.benchCost(), Math.ceil(D.MAKE * D.gold(1) * D.CRAFT.part * (1 - sum('reroll') / 100))); assert.ok(sum('reroll') <= D.REROLL_CUT); assert.ok(G.benchCost() > G.makeCost(), 'still dearer than a new weapon, with every Spare stock held');
+  // Tailwind hangs from a Purse, as Head start did, on a branch that leads nowhere else
+  const H = begun(5), GH = H.game, SH = H.game.S; assert.equal(D.NODE.HS1.eff, 'tail'); assert.equal(D.NODE.HS1.links.join(), 'PU1', 'it hangs from a Purse'); assert.equal(D.NODE.HS2.links.join(), 'PU2'); assert.ok(D.NODE.HS3.dist >= 8 && D.NODE.HS4.dist >= 8, 'the second of each is out on a bridge');
+  { const o = load(2).game, f = o.fresh(); delete f.tailIn; f.tree = { F1: 1, F2: 1, UPG: 1, URR: 1, PU1: 1, HS1: 1, xb2: 1 }; f.bank = 4; const p = o.patch(f); assert.equal(p.tree.HS1, undefined); assert.equal(p.tree.xb2, undefined); assert.equal(p.bank, 10, 'a Head start held from before comes back as cores: Tailwind is not handed out in its place'); assert.ok(p.tree.PU1); const q = o.patch(JSON.parse(JSON.stringify(Object.assign(p, { tree: Object.assign({}, p.tree, { HS1: 1 }) })))); assert.ok(q.tree.HS1, 'once only: one bought since is kept'); }
+  for (const n of D.TREE) if (n.eff === 'tail') assert.ok(n.near.some(x => D.NODE[x].eff === 'purse' || (D.NODE[x].eff === 'tail' && D.NODE[x].near.some(y => D.NODE[y].eff === 'purse'))), n.id + ': a Tailwind is reached through a Purse');
+  for (const end of ['NK', 'K2', 'SL', 'K3']) assert.ok(D.NODE[end].near.every(x => D.NODE[x].eff !== 'tail'), end + ': no bridge opens on a Tailwind');
+  // and none stands on a path: every Tailwind is on a branch that leads nowhere else, so the tree is as connected without them
+  { const heads = new Set(D.TREE.filter(n => n.eff === 'tail').map(n => n.id)), seen = new Set(D.TREE_START), todo = D.TREE_START.slice(); assert.equal(heads.size, 8);
+    while (todo.length) for (const y of D.NODE[todo.shift()].near) if (y !== 'start' && !heads.has(y) && !seen.has(y)) { seen.add(y); todo.push(y); }
+    assert.equal(seen.size, D.TREE.length - 8, 'every other node is reached without crossing a Tailwind'); for (const h of heads) assert.ok(D.NODE[h].near.length <= 2 && D.NODE[h].near.every(x => ['purse', 'tail'].includes(D.NODE[x].eff)), h); }
+  for (const b of ['xb', 'xd']) { assert.equal([1, 4].map(k => D.NODE[b + k].eff).join(), 'purse,purse'); assert.equal(D.NODE[b + '4'].links.join(), b + '1'); assert.equal(D.NODE[b + '2'].links.join(), b + '1'); assert.equal(D.NODE[b + '3'].links.join(), b + '2'); }
+  // Provisions (one starting skill) is gone from the tree, and a save that held one has its cores back
+  assert.equal(D.TREE.filter(n => n.eff === 'kit').length, 0); { const o = JSON.parse(JSON.stringify(SH)); o.tree = { F1: 1, xa1: 1, xa2: 1, xc2: 1 }; const b0 = o.bank || 0, p = GH.patch(o); assert.equal(p.tree.xa2, undefined); assert.equal(p.tree.xa1, 1); assert.equal(p.bank, b0 + 14); }
+  // a run that was begun with a Head start, before there was none, still has the levels it passed over to be paid for (S.run.paid)
+  { const T = begun(6), GT = T.game, ST = T.game.S; assert.equal(D.SKIP_PAY, 0.5);
+    let old = JSON.parse(JSON.stringify(ST)); delete old.run.paid; old.run.skip = 5; old.maxLevel = 6; assert.equal(GT.patch(old).run.paid, 0); old = JSON.parse(JSON.stringify(ST)); delete old.run.paid; old.maxLevel = 12; const P12 = GT.patch(old); assert.equal(P12.run.paid, 11); assert.equal(P12.run.skip, undefined); }
+});
+test('Tailwind: after a fight won in under a second the next may be waved through, paid for and counted as won; never a boss', () => {
+  const T = begun(7), G = T.game, S = G.S, D = T.data; D.HP0 = 0.0001;
+  assert.equal(D.TAIL.secs, 1); assert.equal(D.TAIL.odds.length, 8); assert.equal(D.TAIL.odds[0].join(), '0.12,0'); assert.equal(D.TAIL.odds[7].join(), '1,1');
+  // each node takes about the same share off an easy level: the fights skipped go up evenly in what they save
+  { const share = D.TAIL.odds.map(o => { const k = o[0] * (1 + o[1]); return k / (1 + k); }), secs = share.map(x => 3.5 + 10.8 * (1 - x)); let was = 14.3;
+    for (let i = 0; i < 8; i++) { assert.ok(share[i] > (i ? share[i - 1] : 0), 'more with each'); const cut = 1 - secs[i] / was; assert.ok(cut > 0.07 && cut < 0.1, 'node ' + (i + 1) + ' takes ' + (cut * 100).toFixed(1) + '% off'); was = secs[i]; } near(share[7], 2 / 3, 1e-9); }
+  const level = lvl => { S.level = lvl; S.maxLevel = Math.max(S.maxLevel, lvl); S.fight = 0; G.F.skip = 0; G.spawn(); G.ev.length = 0; const r = { fought: 1, skipped: 0, gold: 0, boss: 0 }; let done = false;
+    for (let i = 0; i < 20000 && !done; i++) { const e = G.alive()[0]; if (e) { G.F.cdC = 0; G.click(e.x, e.y); } G.update(0.02);
+      for (const x of G.ev) { if (x.t === 'spawn') { r.fought++; if (G.F.enc.boss) r.boss++; } if (x.t === 'tailwind') { r.skipped++; r.gold += x.gold; } if (x.t === 'leveldone') done = true; } G.ev.length = 0; }
+    return r; };
+  let r = level(1); assert.equal(r.fought, 10); assert.equal(r.skipped, 0, 'with no Tailwind every fight is fought'); assert.equal(G.tailOdds().join(), '0,0');
+  for (const n of D.TREE) if (n.eff === 'tail') S.tree[n.id] = 1; assert.equal(G.tailOdds().join(), '1,1');
+  S.auto = false; const g0 = S.gold, k0 = S.stats.kills; r = level(2);
+  assert.equal(r.fought, 4, 'one fought, two waved through, three times over, and then the boss'); assert.equal(r.skipped, 6); assert.equal(r.boss, 1, 'the boss is fought');
+  assert.ok(r.gold > 0 && S.gold - g0 > r.gold, 'the skipped fights paid, and so did the fought ones'); assert.ok(S.stats.kills - k0 >= 10, 'their kills count');
+  for (let f = 0; f < D.FIGHTS; f++) assert.ok(S.run.won[(2 - 1) * D.FIGHTS + f], 'fight ' + f + ' of the level counts as won');
+  // a skipped fight pays as a fought one does: double the first time, half after
+  { const first = r.gold; const again = level(2); assert.equal(again.skipped, 6); assert.ok(again.gold < first * 0.6 && again.gold > first * 0.1, 'half pay the second time round: ' + first.toFixed(1) + ' then ' + again.gold.toFixed(1)); }
+  // nothing comes off a boss: however fast it falls, the next level opens with a fight, and with all its Life
+  G.F.life = 5; S.auto = true; S.level = 3; S.maxLevel = 4; S.fight = 9; G.F.skip = 0; G.spawn(); G.ev.length = 0; let tw = 0, lvl4 = null;
+  for (let i = 0; i < 20000 && !lvl4; i++) { const e = G.alive()[0]; if (e) { G.F.cdC = 0; G.click(e.x, e.y); } G.update(0.02); for (const x of G.ev) { if (x.t === 'tailwind') tw++; if (x.t === 'spawn' && S.level === 4) lvl4 = { fight: S.fight, life: G.F.life }; } G.ev.length = 0; }
+  assert.equal(tw, 0); assert.equal(lvl4.fight, 0, 'level 4 opens on its first fight'); assert.equal(lvl4.life, G.X.lifeMax);
+  // the second is counted from the fight's first blow, not from its opening: a slow weapon that ends it in one has had an easy fight
+  { const one = (wait, drag) => { S.level = 6; S.maxLevel = 7; S.fight = 0; G.F.skip = 0; S.auto = false; G.spawn(); G.ev.length = 0; G.F.dur = wait; if (drag) { G.F.first = 0; }
+      let n = 0, sp = 0; for (let i = 0; i < 400 && sp < 1; i++) { const e = G.alive()[0]; if (e) { G.F.cdC = 0; G.click(e.x, e.y); } G.update(0.02); for (const x of G.ev) { if (x.t === 'tailwind') n++; if (x.t === 'spawn') sp++; } G.ev.length = 0; } return n; };
+    assert.equal(one(2.6, false), 2, 'two and a half seconds waiting for the blow, and then it was over at once: easy'); assert.equal(one(2.6, true), 0, 'but not a fight that has been going on since its first blow that long ago'); }
+  // not after a slow win
+  D.TAIL.secs = 0; r = level(5); assert.equal(r.skipped, 0, 'no fight is under no time at all'); assert.equal(r.fought, 10); D.TAIL.secs = 1;
+  // the nodes read "some" until one is held, and "more" after: and what they come to is said in the tree's summary
+  assert.equal(D.TREE_EFF.tail.text(1), 'Skip some easy battles'); assert.equal(D.TREE_EFF.tail.more, 'Skip more easy battles'); assert.equal(D.TREE_EFF.tail.sum(1), '12% to skip the battle after an easy one'); assert.equal(D.TREE_EFF.tail.sum(6), 'skips the battle after an easy one, 20% a second'); assert.equal(D.TREE_EFF.tail.sum(8), 'skips two battles after an easy one');
+});
+test('patch notes: a returning save is shown what it has not read, once; a new one is shown nothing', () => {
+  const A = load(1), G = A.game; assert.equal(G.noteTop(), 0, 'no notes written: nothing to show'); assert.equal(G.unseenNotes().length, 0); assert.equal(G.fresh().notes, 0);
+  A.notes = [{ id: 1, title: 'One', lines: ['a'] }, { id: 2, title: 'Two', lines: ['b', 'c'] }, { id: 3, title: 'Empty', lines: [] }];
+  assert.equal(G.noteTop(), 2, 'one with no lines does not count'); assert.equal(G.fresh().notes, 2, 'a new save has read them all');
+  const old = G.fresh(); delete old.notes; const P = G.patch(old); assert.equal(P.notes, 0, 'a save from before there were any has read none');
+  G.S.notes = 0; assert.equal(G.unseenNotes().map(n => n.id).join(), '2,1', 'newest first'); G.S.notes = 1; assert.equal(G.unseenNotes().map(n => n.id).join(), '2');
+  G.seeNotes(); assert.equal(G.S.notes, 2); assert.equal(G.unseenNotes().length, 0, 'and then they are read');
+  A.notes.push({ id: 4, title: 'Later', lines: ['d'] }); assert.equal(G.unseenNotes().map(n => n.id).join(), '4', 'until there is another');
 });
 test('weapon nodes: each type has small nodes that sharpen what it does and a notable that changes it', () => {
   const D0 = load(1).data;
@@ -763,7 +811,7 @@ test('crafting a skill: two ways are always there, and the tree unlocks three mo
   for (let i = 0; i < 30 && S.bench.sockets[0].gem; i++) G.craft('morph', red.id);
   assert.equal(S.bench.sockets[0].gem, null); assert.ok(S.bag.includes(red)); assert.notEqual(G.color(red), 'r');
   // crafting costs less with the workshop's nodes
-  const full = G.craftCost('recast', g); hold(SW, 'craft'); assert.equal(G.craftCost('recast', g), Math.ceil(D.FORGE.recast(S.maxLevel) * (1 - D.TREE.filter(n => n.eff === 'craft').reduce((a, n) => a + n.amt, 0) / 100))); assert.ok(G.craftCost('recast', g) < full);
+  const full = G.craftCost('recast', g); hold(SW, 'craft'); assert.equal(G.craftCost('recast', g), Math.ceil(D.FORGE.recast(1) * 3 * (1 - D.TREE.filter(n => n.eff === 'craft').reduce((a, n) => a + n.amt, 0) / 100))); assert.ok(G.craftCost('recast', g) < full);
 });
 test('the second bench sets a weapon aside, skills and all', () => {
   const SW = rich(), G = SW.game, S = G.S, D = SW.data;
@@ -811,7 +859,7 @@ test('a colour\'s skills are a node on the tree: until it is held that colour dr
   c = tally(4000); assert.deepEqual(Object.keys(c).sort(), ['concuss', 'frost', 'ignite', 'pg', 'pr', 'shatter']); assert.equal(mine.sk, 'pb');
   assert.equal(G.dropping().map(k => k.id).join(), 'pr,frost,concuss,shatter,ignite,pg');
   // buying, a run's first drops and a starting kit all follow the same rule
-  hold(SW, 'uBuy', 'kit'); S.gold = 1e12; S.bag = [];
+  hold(SW, 'uBuy', 'kitAll'); S.gold = 1e12; S.bag = [];
   for (let i = 0; i < 24; i++) { const g = G.buySkill(); assert.ok(g); assert.ok(D.SKILL[g.sk].plain ? g.sk !== 'pb' : G.color(g) === 'b', 'red and green come plain, blue as its real skills: ' + g.sk); }
   assert.ok(S.bag.some(g => g.sk === 'pr') && S.bag.some(g => G.color(g) === 'b')); assert.equal(G.buySkill.length, 0, 'there is no buying by colour');
   S.maxLevel = 9; G.prestige(); G.beginRun(); assert.ok(S.bag.length >= 1 && S.bag.every(g => D.SKILL[g.sk].plain ? g.sk !== 'pb' : G.color(g) === 'b'), S.bag.map(g => g.sk).join());
@@ -855,7 +903,7 @@ test('gold buys a random skill, priced by your deepest level and of a tier the t
   S.gold = 1e9; assert.equal(G.buySkill(), false, 'not until the Market is held'); assert.equal(S.gold, 1e9); S.gold = 0; assert.equal(D.NODE.UBY.eff, 'uBuy'); S.tree.UBY = 1;
   assert.equal(G.buySkill(), false, 'not without gold'); assert.equal(S.bag.length, 0);
   S.maxLevel = 20; S.level = 3; S.gold = 1e9;
-  assert.equal(G.buyCost(), Math.ceil(D.gold(20) * D.BUY)); const cost = G.buyCost();
+  assert.equal(G.buyCost(), Math.ceil(D.gold(1) * D.BUY)); const cost = G.buyCost();
   const kinds = new Set(); let two = 0, t1 = 0;
   for (let i = 0; i < 40; i++) { const g = G.buySkill(); assert.ok(g); assert.ok(D.tier(g.lvl) >= 1 && D.tier(g.lvl) <= 5); t1 += D.tier(g.lvl) === 1; assert.equal(g.nw, 1, 'new, like a drop'); kinds.add(g.sk); two += g.aff.length === 2; }
   assert.ok(t1 >= 20, 'with no tier node, mostly tier 1, whatever the level: ' + t1 + ' of 40');
@@ -893,14 +941,14 @@ test('the forge works for gold and does two things: one affix removed at random,
     g.aff = [{ k: 'dmg', t: 2 }, { k: 'crit', t: 1 }]; assert.ok(G.craft('strip', g.id)); assert.equal(g.aff.length, 1); assert.equal(g.sk, 'nova'); assert.equal(g.lvl, 10);
     const kept = g.aff[0]; assert.equal(kept.t, kept.k === 'dmg' ? 2 : 1, 'its tier is as it was'); gone[kept.k === 'dmg' ? 'crit' : 'dmg']++;
   }
-  assert.ok(gone.dmg >= 15 && gone.crit >= 15, 'either may go: ' + JSON.stringify(gone)); assert.equal(S.gold, gold - 60 * D.FORGE.strip(S.maxLevel)); near(D.FORGE.strip(10), 3 * D.gold(10), 0.05, 'three kills of gold, at the run\'s deepest level:'); S.maxLevel = 30; assert.equal(G.craftCost('strip', g), D.FORGE.strip(30), 'the same skill costs more to work on deeper in'); S.maxLevel = 1;
+  assert.ok(gone.dmg >= 15 && gone.crit >= 15, 'either may go: ' + JSON.stringify(gone)); assert.equal(S.gold, gold - 60 * G.craftCost('strip', g)); assert.equal(G.craftCost('strip', g), 26, 'what a reroll of the weapon costs'); S.maxLevel = 30; assert.equal(G.craftCost('strip', g), 26, 'and the same however deep the run is'); S.maxLevel = 1;
   assert.ok(G.craft('strip', g.id)); assert.equal(g.aff.length, 0); const bareGold = S.gold; assert.equal(G.craft('strip', g.id), false, 'nothing left to remove'); assert.equal(S.gold, bareGold); assert.equal(D.CRAFT_BY.strip.why, 'No affix');
   g.aff = [{ k: 'dmg', t: 2 }, { k: 'crit', t: 1 }];
   // reroll all affixes: both secondary affixes are new, the primary is not touched, and nothing is added
   const two = gem(SW, 'frost', 10, [{ k: 'dmg', r: 0.5 }, { k: 'crit', r: 0.5 }]);
   gold = S.gold; let changed = 0;
   for (let i = 0; i < 20; i++) { const was = two.aff.map(a => a.k + a.t).join(); assert.ok(G.forgeRecast(two.id)); assert.equal(two.aff.length, 2); assert.notEqual(two.aff[0].k, two.aff[1].k); if (two.aff.map(a => a.k + a.t).join() !== was) changed++; }
-  assert.ok(changed >= 15, 'new affixes nearly every time: ' + changed); assert.equal(two.sk, 'frost'); assert.equal(two.lvl, 10); assert.equal(S.gold, gold - 20 * D.FORGE.recast(S.maxLevel));
+  assert.ok(changed >= 15, 'new affixes nearly every time: ' + changed); assert.equal(two.sk, 'frost'); assert.equal(two.lvl, 10); assert.equal(S.gold, gold - 20 * G.craftCost('recast', two)); assert.equal(G.craftCost('recast', two), 39);
   // a skill with one affix still has one, however often it is rerolled, and it is always a different one
   const one = gem(SW, 'ignite', 30, [{ k: 'dmg', r: 0.5 }]);
   for (let i = 0; i < 30; i++) { const was = one.aff[0].k; assert.ok(G.forgeRecast(one.id)); assert.equal(one.aff.length, 1, 'the number of affixes never changes'); void was; }
@@ -1145,7 +1193,9 @@ test('a fight pays double its gold the first time it is won in a run, and half w
   const fight = (lvl, f) => { S.level = lvl; S.fight = f; G.spawn(); const due = G.alive().reduce((s, e) => s + e.gold, 0) * G.X.goldMult, boss = G.F.enc.boss, g0 = S.gold; for (let i = 0; i < 600 && G.alive().length; i++) { const e = G.alive()[0]; G.F.cdC = 0; G.click(e.x, e.y); G.update(0.02); } G.ev.length = 0; S.bag.length = 0; return { ratio: (S.gold - g0) / due, boss }; };
   delete S.run.far;
   let r = fight(4, 3); assert.equal(r.boss, false); near(r.ratio, 2, 1e-9, 'a fight on the way, the first time:'); assert.equal(S.run.far, 33, 'the furthest fight won: level 4, fight 3');
-  near(fight(4, 3).ratio, 0.5, 1e-9, 'the same fight again:'); near(fight(4, 2).ratio, 0.5, 1e-9, 'and any before it:'); near(fight(2, 9).ratio, 0.5, 1e-9, 'an earlier level\'s boss:');
+  near(fight(4, 3).ratio, 0.5, 1e-9, 'the same fight again:');
+  // each fight is kept: one you have not won this run pays double its first time wherever it lies, so the levels a Head start skips are not half pay
+  near(fight(4, 2).ratio, 2, 1e-9, 'one before it, not yet won:'); near(fight(4, 2).ratio, 0.5, 1e-9, 'and again:'); near(fight(2, 9).ratio, 2, 1e-9, 'an earlier level\'s boss, the first time:'); near(fight(2, 9).ratio, 0.5, 1e-9);
   near(fight(4, 4).ratio, 2, 1e-9, 'the next one on:');
   for (const lvl of [4, 5]) {      // an ordinary boss, and an act's boss with its guards
     r = fight(lvl, 9); assert.equal(r.boss, true); near(r.ratio, 2, 1e-9, 'the boss of level ' + lvl + ', the first time:'); near(fight(lvl, 9).ratio, 0.5, 1e-9, 'and again:');
@@ -1155,7 +1205,7 @@ test('a fight pays double its gold the first time it is won in a run, and half w
   // a new run, and it is all new again
   S.run = { drops: 99, kills: 0, time: 0, earn: 0, paid: 0 }; near(fight(1, 0).ratio, 2, 1e-9, 'a new run:');
   // an old save: every fight up to where it stands has been won
-  const old = JSON.parse(JSON.stringify(S)); old.run = { drops: 5, kills: 9, time: 1, earn: 0, paid: 6 }; old.maxLevel = 7; old.level = 7; old.fight = 4; assert.equal(G.patch(old).run.far, 63);
+  const old = JSON.parse(JSON.stringify(S)); old.run = { drops: 5, kills: 9, time: 1, earn: 0, paid: 6 }; old.maxLevel = 7; old.level = 7; old.fight = 4; { const p = G.patch(old); assert.equal(p.run.far, 63); assert.equal(p.run.base, 63); assert.equal(Object.keys(p.run.won).length, 0); }
 });
 test('Deathblow adds to what a critical deals, and the Defense Aura takes a fifth off every enemy blow', () => {
   const SW = rich(), G = SW.game, S = G.S, D = SW.data; colours(SW);
