@@ -171,6 +171,7 @@ It is a separate game from `../smeltworks` and shares nothing with it at run tim
 - **Equipping a weapon lands.** Its slot in the list lights for a beat (0.45 s), then the card drops in with a thud and a ring of steel, and glows as before.
 - **Scrapping a weapon breaks it.** Its card is struck white and red, shakes, buckles and drops away over 0.7 s, to a hammer blow, the steel giving and the pieces settling. (The weapon and its gold are gone at once: it is the card that lingers.)
 - **The tree's ripple brings in what is not held.** Nodes you hold, and the paths between them, are there the moment the page opens; the ripple fades in the rest and only brightens the held ones as it passes.
+- **Equip asks before a socket is wasted.** An empty socket is lost for good when a weapon is equipped, so if one is empty and a skill in the bag would fit it, Equip stops and says so ("Equip anyway" or "Back"). With nothing that fits it equips at once, as before.
 - **A node's price is always above it** on the tree, whatever its shape.
 - **There is no total dps in the top bar**: each weapon's card has its own.
 - **An enemy's blow can be heard.** It was a faint low hum, lost under a line of weapons and below what small speakers play; it is a dull knock now, and a slam a heavier one.

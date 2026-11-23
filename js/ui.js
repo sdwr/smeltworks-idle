@@ -548,9 +548,15 @@ function act(name, b, ev) {
       if (G.S.gold < G.makeCost()) { ok = false; toast('Not enough gold'); break; }
       ok = G.make();
       break;
-    case 'equip':     // free and at once, empty sockets or not: the button's own tip says what an empty one costs. With no free slot it is greyed out
+    case 'equip': case 'equip-yes':     // free and at once, empty sockets or not: the button's own tip says what an empty one costs. With no free slot it is greyed out
       // but still answers a click and a hover (a truly disabled button does neither), so the toast and the tooltip can say what to do
       if (G.emptyPost() < 0) { ok = false; toast('Scrap one weapon first (✕)'); break; }
+      // an empty socket is lost for good when the weapon is equipped: if a skill in the bag would go in one, ask first
+      if (name === 'equip') {
+        const B = G.S.bench, empty = B.sockets.map((k, i) => (k.gem ? -1 : i)).filter(i => i >= 0), fit = empty.filter(i => G.S.bag.some(g => G.fits(g, G.BENCH, i))).length;
+        if (fit) { ok = false; modal(`<h3>Equip with ${empty.length === 1 ? 'an empty socket' : empty.length + ' empty sockets'}?</h3><p>Empty sockets are lost when a weapon is equipped. You have ${fit === 1 ? 'a skill that fits' : 'skills that fit'}: right-click a skill to socket it.</p>
+          <div class="btns"><button data-act="equip-yes">Equip anyway</button><button class="big" data-act="close">Back</button></div>`); break; }
+      } else closeModal();
       ok = G.equip();
       break;
     case 'sell': {      // the card is kept a moment after the weapon is gone, to be seen breaking
