@@ -444,7 +444,7 @@ G.beginRun = function () {
   S.crafter = Math.min(D.CRAFT.max - D.CRAFT.sockets0, G.treeVal('sock') + G.treeVal('sock2'));
   newRun();
   G.F = freshFight(); G.recompute();
-  if (D.RUN_SECS > 0) { G.F.wait = D.RUN_SECS; G.F.life = G.X.lifeMax; } else G.spawn();      // a moment at the forge before the first enemies come
+  if (D.RUN_SECS > 0) { G.F.wait = D.RUN_SECS; G.F.opening = true; G.F.life = G.X.lifeMax; } else G.spawn();      // a moment at the forge before the first enemies come
   emit('run', { secs: D.RUN_SECS });
   return true;
 };
@@ -604,7 +604,7 @@ G.spawn = function () {
   // Life lasts the level: it is full at a level's first fight (so after a loss too, which always starts one), and
   // what is left of it carries from fight to fight after that
   if (S.fight === 0 || F.life == null) F.life = X.lifeMax; else F.life = Math.min(F.life, X.lifeMax);
-  F.wait = 0; F.dead = false;
+  F.wait = 0; F.dead = false; F.opening = false;
   emit('spawn');
 };
 
@@ -822,8 +822,9 @@ G.update = function (dt) {
   F.cdC = Math.max(-dt, F.cdC - dt);              // the cursor's cooldown runs whether or not there is anything to hit
   if (S.forge) { S.forge.left -= dt; if (S.forge.left <= 0) forged(); }      // and so does the anvil
   if (F.wait > 0) {
-    // between fights the weapons go on winding up, so a blow that was nearly ready lands as the next fight opens
-    for (let i = 0; i < X.units.length; i++) if (X.units[i]) F.cd[i] = Math.min(0.999, (F.cd[i] || 0) + X.units[i].aps * dt);
+    // between fights the weapons go on winding up, so a blow that was nearly ready lands soon after the next fight opens:
+    // but not the instant it does. Enough is kept back for the weapon to be seen crossing to its enemy (D.REACH).
+    for (let i = 0; i < X.units.length; i++) if (X.units[i]) { const a = X.units[i].aps, top = 1 - Math.min(D.REACH.share, D.REACH.secs * a); F.cd[i] = Math.min(top, (F.cd[i] || 0) + a * dt); }
     F.wait -= dt; if (F.wait <= 0) G.spawn(); return;
   }
   meterTick(dt);                                  // only time spent fighting counts
@@ -888,6 +889,8 @@ G.click = function (x, y) {
 G.aim = function (x, y) { G.F.ax = x; G.F.ay = y; };
 /* seconds left of the count after a lost fight, or 0 */
 G.deadLeft = () => (G.F.dead && G.F.wait > 0 ? G.F.wait : 0);
+/* seconds left before a run's first fight, or 0 */
+G.openLeft = () => (G.F.opening && G.F.wait > 0 ? G.F.wait : 0);
 G.setHold = function (on) { G.F.hold = !!on; };
 /* how far through its cooldown the cursor is: 1 is ready */
 G.ready = () => 1 - U.clamp(G.F.cdC / G.X.cooldown, 0, 1);

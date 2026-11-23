@@ -165,8 +165,9 @@ It is a separate game from `../smeltworks` and shares nothing with it at run tim
 - **Opening the prestige page.** The tree ripples out from its centre, twice, slowly and quietly: a faint ring spreads from the first node and each path and node comes up softly as it passes, then a second ring follows and they brighten a little once more (under three seconds in all; not at all for a reader who has asked for reduced motion).
 - **Crafting shows what it did.** An affix put on a skill slides in lit gold and settles; one taken off turns red, is struck through and closes up; rerolled affixes all come in as new.
 - **Losing a fight** is ten seconds down (`D.DEATH_SECS`): the arena goes grey under the words ("Driven back: Back to level 6" after an ordinary fight, "Overrun: Level 7 restarts" after a boss) and a count of the seconds left, then the level starts again. The forge and the bag go on working meanwhile, and going to another level does not cut the count short.
-- **A run opens on an empty arena** for four seconds (`D.RUN_SECS`; the words say "First fight in 4s"): time to forge a weapon before the first enemies come.
+- **A run opens on an empty arena** for three seconds (`D.RUN_SECS`), with a 3, 2, 1 count in the middle and no words: time to forge a weapon before the first enemies come.
 - **A run's first weapon always has a socket for a skill already in the bag.** If none of its sockets is a colour the bag holds, one of them becomes one, and it keeps one if its sockets are rerolled. Later weapons are as they roll.
+- **A fight's first blow is not instant.** Between fights a weapon winds up only so far (`D.REACH`): what is left when the fight opens is what it takes to cross to its enemy, so a dagger is seen going out and not just appearing on its target.
 - **A node's price is always above it** on the tree, whatever its shape.
 - **There is no total dps in the top bar**: each weapon's card has its own.
 - **An enemy's blow can be heard.** It was a faint low hum, lost under a line of weapons and below what small speakers play; it is a dull knock now, and a slam a heavier one.
@@ -216,7 +217,7 @@ It is a separate game from `../smeltworks` and shares nothing with it at run tim
   them is held. A locked node's tooltip says "Upgrade and Forge socket first". A save that bought past them when
   it could keeps what it has, and buys the missing one before anything more.
   **The tree is drawn in the same three steps**: the first weapon alone on a black page; then Upgrade and the
-  socket beside it; then, the moment both of those are held, all of it, rippling out from the middle as it does
+  socket beside it; then, a beat (0.7 s) after both of those are held, all of it, rippling out from the middle as it does
   when the page is opened. (Unspec one of the two and it closes again; a save that holds anything further out
   always sees all of it.)
   The cursor clears level 1 by itself in about half a minute: that is one core, and the first prestige
@@ -357,7 +358,7 @@ worker and its dashboard are their own project, `smeltworks-idle-logging`.
 ## Tests
 
 ```
-node tests/logic.test.cjs      # the rules, 66 checks
+node tests/logic.test.cjs      # the rules, 67 checks
 node tests/telemetry.test.cjs  # play data: the switch, what is sent and when, 7 checks
 node tests/sim.cjs 8           # a bot plays 8 hours, idle and with the cursor striking on cooldown, on 3 seeds
 ```

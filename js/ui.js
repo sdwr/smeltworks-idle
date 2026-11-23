@@ -246,6 +246,7 @@ const nodeShape = n => !n.big ? 'bead' : /^(post|sock)2?$/.test(n.eff) || n.eff 
 const RIPPLE = { spread: 1.5, reach: 640, fade: 1.3, gap: 0.62 };      // seconds for a ripple to get from the centre to `reach` (the tree's far edge); how long a node's two swells take; and how far the second ripple is behind the first
 /* The tree opens in three steps: the first weapon alone; then Upgrade and the socket beside it; then, once both of
    those are held, all of it, rippling out from the middle. (A save that holds anything further out sees all of it.) */
+const TREE_PAUSE = 0.7;                         // seconds between buying the second of the two and the whole tree rippling out
 function treeStage() {
   const core = id => D.TREE_GATE.includes(id) || D.TREE_FIRST.includes(id);
   if (G.firstHeld() || Object.keys(G.S.tree).some(id => !core(id))) return 2;
@@ -253,9 +254,16 @@ function treeStage() {
 }
 function treeSVG() {
   const at = id => id === 'start' ? { x: 0, y: 0 } : D.NODE[id];
-  const stage = treeStage(), shown = id => id === 'start' || stage === 2 || D.TREE_GATE.includes(id) || (stage === 1 && D.TREE_FIRST.includes(id));
-  if (UI.treeStage != null && stage > UI.treeStage && UI.pres) UI.presAt = performance.now() / 1000;      // a step opened while the page is up: what is new ripples out
+  let stage = treeStage(); const now = performance.now() / 1000;
+  if (stage < 2 || !UI.pres) UI.treeWait = null;
+  if (UI.treeStage != null && stage > UI.treeStage && UI.pres) {      // a step opened while the page is up: what is new ripples out
+    if (stage === 2 && UI.treeStage === 1) {                          // the whole tree: a beat first, with the two just bought standing lit
+      if (UI.treeWait == null) { UI.treeWait = now + TREE_PAUSE; setTimeout(() => { UI.dirty = true; }, TREE_PAUSE * 1000 + 30); }
+      if (now < UI.treeWait) stage = 1; else { UI.treeWait = null; UI.presAt = now; }
+    } else UI.presAt = now;
+  }
   UI.treeStage = stage;
+  const shown = id => id === 'start' || stage === 2 || D.TREE_GATE.includes(id) || (stage === 1 && D.TREE_FIRST.includes(id));
   const rt = performance.now() / 1000 - (UI.presAt == null ? -99 : UI.presAt), rip = rt < RIPPLE.spread + RIPPLE.fade + 0.4, ring = RIPPLE.spread * 740 / RIPPLE.reach;      // (a ring is drawn out to 740, at the ripple's own pace)
   const rd = (x, y) => rip ? `animation-delay:${(Math.hypot(x, y) / RIPPLE.reach * RIPPLE.spread - rt).toFixed(2)}s;` : '';
   let h = `<svg id="tree"${rip ? ' class="ripple"' : ''} viewBox="-615 -372 1230 744" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
@@ -395,7 +403,14 @@ function deadTick() {
   if (n === deadN) return; deadN = n;
   $('dead').classList.toggle('hidden', !n); if (n) $('dead-n').textContent = n;
 }
-UI.frame = function () { patch(false); deadTick(); };
+/* a run's opening count: 3, 2, 1, and nothing else */
+let openN = -1;
+function openTick() {
+  const left = G.S.alloc ? 0 : G.openLeft(), n = left > 0 ? Math.ceil(left) : 0;
+  if (n === openN) return; openN = n;
+  $('count').classList.toggle('hidden', !n); if (n) $('count').innerHTML = `<span>${n}</span>`;
+}
+UI.frame = function () { patch(false); deadTick(); openTick(); };
 
 /* ------------------------------------------------------------------ toasts, banners, tips, dialogs */
 function toast(html) {
@@ -495,7 +510,7 @@ UI.onEvent = function (ev) {
     case 'hit': if (ev.who < 0) AU.play(ev.crit ? 'tapCrit' : 'tap', 0.05); else AU.play(ev.crit ? 'softCrit' : 'soft', ev.crit ? 0.3 : 0.22); break;
     case 'hurt': { AU.play(ev.slam ? 'ouchBig' : 'ouch', 0.18); const c = document.querySelector('.lifebar'); c.classList.remove('hurt'); void c.offsetWidth; c.classList.add('hurt'); break; }
     case 'kill': AU.play(ev.boss ? 'win' : 'fall', 0.15); AU.play('chink', 0.25); break;
-    case 'spawn': if (G.F.enc.actBoss) AU.play('boss'); break;
+    case 'spawn': if (G.F.enc && G.F.enc.actBoss) AU.play('boss'); break;
     case 'nova': AU.play('boom', 0.4); break;
     case 'arc': AU.play('zap', 0.3); break;
     case 'status': if (ev.s === 'stun') AU.play('daze', 0.4); break;
@@ -507,7 +522,7 @@ UI.onEvent = function (ev) {
     case 'bagfull': toast(`<b class="t-${D.SKILL[ev.sk].c}">${D.SKILL[ev.sk].name}</b> row full: salvaged ${ci('gold')}${fmt(ev.gold)}`); break;
     case 'leveldone': interlude(ev); AU.play('level'); break;
     case 'prestige': AU.play('master'); $('interlude').classList.add('hidden'); UI.sel = null; UI.fresh.clear(); UI.glows = {}; for (const el of document.querySelectorAll('.newglow')) el.classList.remove('newglow'); showPrestige(true); break;
-    case 'run': UI.pres = false; $('prestige').classList.add('hidden'); banner('Run ' + (G.S.runs + 1), ev.secs ? 'First fight in ' + ev.secs + 's' : '', 'var(--hot)', ev.secs || 0); AU.play('level'); UI.dirty = true; UI.render(); flashNew(); break;
+    case 'run': UI.pres = false; $('prestige').classList.add('hidden'); $('banner').innerHTML = ''; openTick(); AU.play('level'); UI.dirty = true; UI.render(); flashNew(); break;
     case 'goto': $('interlude').classList.add('hidden'); break;
     case 'fail': $('banner').innerHTML = ''; $('dead-title').textContent = ev.boss ? 'Overrun' : 'Driven back'; $('dead-sub').textContent = ev.back ? 'Back to level ' + G.S.level : 'Level ' + G.S.level + ' restarts'; deadTick(); AU.play('death'); break;
   }

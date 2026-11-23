@@ -48,7 +48,7 @@ const add = o => { if (fx.length < 90) { o.max = o.life; fx.push(o); } };
    its shot, on ahead to be there at that moment. If the target changes on the way, it turns towards the new one.
    A melee weapon goes out, swings as the blow lands, and walks home; a shot flies, and stops where it hits unless
    the weapon pierces, when it carries on through. */
-const TRIP = aps => Math.min(0.6, 0.42 / Math.max(0.1, aps));         // seconds for a melee weapon to reach its target, and again to come home
+const TRIP = aps => Math.min(D.REACH.secs, D.REACH.share / Math.max(0.1, aps));         // seconds for a melee weapon to reach its target, and again to come home
 const FLIGHT = aps => Math.min(0.55, 0.5 / Math.max(0.1, aps));       // seconds a shot is in the air
 const NEW = 3.2;                                                      // seconds a newly made weapon's post glows
 const SWING = 0.24, THROUGH = 80;                                     // how long the swing lasts; how fast a piercing shot carries on (arena units a second)

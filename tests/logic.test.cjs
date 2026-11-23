@@ -589,8 +589,8 @@ test('prestige ends the run and opens the tree; nothing moves until the next run
   // the run begins: the line the tree gives, and the tree is fixed
   for (const id of ['P1', 'UHX']) assert.ok(G.allocate(id));
   assert.equal(S.posts.length, 2, 'not until the run begins'); assert.ok(G.beginRun()); assert.equal(S.alloc, false); assert.equal(G.beginRun(), false);
-  assert.equal(S.posts.length, 2, 'the two posts the tree holds'); assert.equal(G.F.es.length, 0, 'a new run opens on an empty arena: a moment to forge'); assert.equal(D.RUN_SECS, 4); assert.equal(G.F.life, G.X.lifeMax);
-  G.update(3.9); assert.equal(G.F.es.length, 0); G.update(0.2); assert.equal(G.F.es.length, 1, 'then one monster'); assert.equal(G.X.units.filter(Boolean).length, 0);
+  assert.equal(S.posts.length, 2, 'the two posts the tree holds'); assert.equal(G.F.es.length, 0, 'a new run opens on an empty arena: a moment to forge'); assert.equal(D.RUN_SECS, 3); assert.equal(G.F.life, G.X.lifeMax); near(G.openLeft(), 3, 1e-9);
+  G.update(2.9); assert.equal(G.F.es.length, 0); assert.ok(G.openLeft() > 0); G.update(0.2); assert.equal(G.openLeft(), 0); assert.equal(G.F.es.length, 1, 'then one monster'); assert.equal(G.X.units.filter(Boolean).length, 0);
   assert.equal(G.allocate('s1'), false); assert.equal(G.unallocate('UHX'), false); assert.equal(G.spent(), 6); assert.equal(G.cores(), 40 - 13 - 4, 'cores not spent are kept');
   const t2 = S.stats.time; G.update(1); assert.ok(S.stats.time > t2, 'and time moves again');
   // the first fights of every run drop a skill
@@ -1199,5 +1199,13 @@ test('a run\'s first weapon always has a socket for a skill already in the bag, 
   assert.ok(forced > 5, 'later weapons are not held to it (' + forced + ')');
   // an empty bag asks nothing of it
   const SW = begun(3), G = SW.game, S = G.S; S.bench = G.blankBench(); S.bag.length = 0; S.run.made = 0; S.gold = 1e12; assert.ok(G.make()); G.update(SW.data.FORGE_SECS + 0.1); assert.ok(S.bench.made);
+});
+test('a fight\'s first blow is not instant: between fights a weapon winds up only so far, so it is seen crossing to its enemy', () => {
+  const SW = rich(), G = SW.game, S = G.S, D = SW.data;
+  for (const type of ['dagger', 'hammer']) {
+    S.bench = bench(SW, type, ''); S.posts[0].unit = null; assert.ok(G.equip(0)); const a = G.X.units[0].aps, keep = Math.min(D.REACH.share, D.REACH.secs * a);
+    G.F.cd[0] = 0.97; G.F.wait = 5; G.update(4.9); near(G.F.cd[0], 1 - keep, 1e-9, type + ' waits with');
+    assert.ok((1 - G.F.cd[0]) / a >= Math.min(D.REACH.secs, D.REACH.share / a) - 1e-9, type + ': there is time to get there');
+  }
 });
 console.log(process.exitCode ? 'some tests failed' : `${n} tests passed`);

@@ -209,6 +209,10 @@ button.x { padding: 5px 7px; color: var(--dim); flex: none; }
 @keyframes iin { from { opacity: 0; } to { opacity: 1; } }
 @keyframes iout { from { opacity: 1; } to { opacity: 0; } }
 @keyframes idrain { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+/* a run's opening: 3, 2, 1 in the middle of the empty arena */
+#count { position: absolute; inset: 0; display: grid; place-items: center; z-index: 4; pointer-events: none; font: 700 84px var(--serif); color: var(--hot); text-shadow: 0 0 28px rgba(255,180,80,.45); }
+#count span { animation: countin 1s ease-out both; }
+@keyframes countin { 0% { opacity: 0; transform: scale(1.5); } 18% { opacity: 1; transform: none; } 80% { opacity: 1; } 100% { opacity: 0; transform: scale(.85); } }
 /* a lost fight: the arena goes grey under a count, until the level starts again */
 #dead { position: absolute; inset: 0; display: grid; place-items: center; z-index: 4; pointer-events: none; background: rgba(22,22,26,.5); -webkit-backdrop-filter: grayscale(1) brightness(.6); backdrop-filter: grayscale(1) brightness(.6); animation: deadin .5s both; }
 .dbox { display: grid; justify-items: center; gap: 4px; }

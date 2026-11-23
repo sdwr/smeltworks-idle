@@ -34,7 +34,7 @@ const U = SW.util = {
 };
 
 const D = SW.data = {};
-D.VERSION = '0.86.0';
+D.VERSION = '0.86.4';
 D.SAVE_KEY = 'smeltworks-idle-v1';
 /* Play data (js/telemetry.js): where it is posted, and the only addresses of the game it is ever sent from */
 D.TELEMETRY = { url: 'https://smeltworks-idle-logging.sdwr.workers.dev/ingest', hosts: ['sdwr.github.io'] };
@@ -94,7 +94,8 @@ D.LIFE = 100; D.LIFE_CAP = 300;     // the Life you begin with. More is on the p
 D.HIT0 = 18;                         // Life a level 1 attack takes (before D.PACE), times the monster's own `hit`
 D.HIT_G = 0.0075; D.HIT_CAP = 2;    // attacks hit 0.75% harder per level, up to twice as hard
 D.DEATH_SECS = 10;                  // after a fight is lost: the arena goes grey and counts down before the level starts again
-D.RUN_SECS = 4;                     // a run opens on an empty arena for this long: time to forge a weapon before the first fight
+D.RUN_SECS = 3;                     // a run opens on an empty arena for this long: time to forge a weapon before the first fight
+D.REACH = { share: 0.42, secs: 0.6 };      // a fight's first blow: at least this share of a cooldown (or this many seconds, if that is less) is still to run when it opens, which is what a weapon takes to get there (arena.js TRIP)
 D.SPAWN = 0.7;                      // the pause between one fight and the next
 D.LEVEL_PAUSE = 2.2;                // and after the last fight of a level: an interlude that says what the level paid and what comes next
 
@@ -263,9 +264,9 @@ D.TREE_EFF = {
   sock:   { name: 'Forge socket', amt: [0, 1], col: SOCK, text: () => 'Unlocks sockets and skills', sum: v => `${D.CRAFT.sockets0 + v} socket${D.CRAFT.sockets0 + v === 1 ? '' : 's'}` },
   post2:  { name: 'Weapon',         amt: [0, 1], col: HUB,  text: () => '+1 weapon' },
   sock2:  { name: 'Forge socket', amt: [0, 1], col: SOCK, text: () => '+1 socket' },
-  uR:     { name: 'Might skills',   amt: [0, 1], col: '#ff5a48', text: () => 'Red skills drop as Twin Strike, Shockwave and Deathblow' },
-  uB:     { name: 'Hex skills',     amt: [0, 1], col: '#5aa8ff', text: () => 'Blue skills drop as Frostbite, Concuss, Shatter and Ignite' },
-  uG:     { name: 'Aid skills',     amt: [0, 1], col: '#6fdc6a', text: () => 'Green skills drop as Damage, Attack Speed and Defense Aura' },
+  uR:     { name: 'Might',          amt: [0, 1], col: '#ff5a48', text: () => 'Unlock Might skills' },
+  uB:     { name: 'Hex',            amt: [0, 1], col: '#5aa8ff', text: () => 'Unlock Hex skills' },
+  uG:     { name: 'Aid',            amt: [0, 1], col: '#6fdc6a', text: () => 'Unlock Aid skills' },
   uUp:    { name: 'Upgrade',        amt: [0, 1], col: HUB,  text: () => 'Upgrade weapons with gold' },
   uReroll: { name: 'Rerolls',       amt: [0, 1], col: FORGE, text: () => 'Reroll the weapon on the bench' },
   uBuy:   { name: 'Market',         amt: [0, 1], col: FORGE, text: () => 'Buy skills with gold' },
