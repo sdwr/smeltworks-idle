@@ -485,7 +485,10 @@ function showTip(html, ev) {
 function hideTip() { $('tip').classList.add('hidden'); }
 /* the tooltip for whatever is under the pointer: a skill, a node of the tree, or anything with a tip of its own */
 let mouse = null;
+/* an event's target is not always an element (the document itself, a text node): the element to look from, or null */
+function asEl(n) { if (n && n.nodeType === 3) n = n.parentElement; return n && typeof n.closest === 'function' ? n : null; }
 function tipFor(el, ev) {
+  el = asEl(el);
   if (!el || UI.dragging != null) return hideTip();
   const g = el.closest('[data-gem]');
   if (g) { const at = G.find(+g.dataset.gem); if (at) { if (G.inspect(at.gem.id)) g.classList.remove('fresh'); return showTip(gemTip(at.gem), ev); } }
@@ -703,7 +706,7 @@ UI.bind = function () {
   document.addEventListener('pointerup', up); document.addEventListener('pointercancel', up); globalThis.addEventListener('blur', () => { up(); stopHold(); });
 
   document.addEventListener('click', ev => {
-    const t = ev.target;
+    const t = asEl(ev.target); if (!t) return;
     if (t.id === 'modal') return closeModal();
     if (t.id === 'prestige') return showPrestige(false);
     const b = t.closest('[data-act]'); if (b) { if (!b.disabled) act(b.dataset.act, b, ev); return; }
@@ -711,7 +714,7 @@ UI.bind = function () {
     const gem = t.closest('[data-gem]'); if (gem) return clickGem(+gem.dataset.gem, ev);
   });
   document.addEventListener('contextmenu', ev => {
-    const gem = ev.target.closest('[data-gem]'); if (!gem) return;
+    const el = asEl(ev.target), gem = el && el.closest('[data-gem]'); if (!gem) return;
     ev.preventDefault();
     const id = +gem.dataset.gem, at = G.find(id); if (!at) return;
     if (ev.shiftKey) shiftSalvage(id); else useGem(id);
@@ -726,17 +729,18 @@ UI.bind = function () {
   });
   document.addEventListener('dragover', ev => {
     if (UI.dragging == null) return;
-    const s = ev.target.closest('[data-sock]');
+    const t = asEl(ev.target); if (!t) return;
+    const s = t.closest('[data-sock]');
     if (s) { const [p, i] = s.dataset.sock.split(':').map(Number); if (canPlace(UI.dragging, p, i)) { ev.preventDefault(); s.classList.add('over'); } return; }
-    if (ev.target.closest('#tab-skills')) ev.preventDefault();
+    if (t.closest('#tab-skills')) ev.preventDefault();
   });
   document.addEventListener('dragleave', ev => { const s = ev.target.closest && ev.target.closest('[data-sock]'); if (s) s.classList.remove('over'); });
   document.addEventListener('drop', ev => {
     if (UI.dragging == null) return;
     ev.preventDefault();
-    const s = ev.target.closest('[data-sock]'), id = UI.dragging;
+    const t = asEl(ev.target), s = t && t.closest('[data-sock]'), id = UI.dragging;
     if (s) { const [p, i] = s.dataset.sock.split(':').map(Number); if (G.socket(id, p, i)) AU.play('equip'); }
-    else if (ev.target.closest('#tab-skills')) { if (G.unsocket(id)) AU.play('click'); }
+    else if (t && t.closest('#tab-skills')) { if (G.unsocket(id)) AU.play('click'); }
   });
   document.addEventListener('dragend', () => { UI.dragging = null; UI.dirty = true; });
 

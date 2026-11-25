@@ -23,8 +23,10 @@ function boot() {
   UI.render();
   SW.telemetry.init();
   // (a returning player is told what has changed, once: with the gold from their time away if there is any, or in a box of its own)
+  try {
   if (/[?&]notes\b/.test(location.search)) UI.whatsNew(true); else
   if (!saved) UI.welcome(); else if (away) UI.offline(away); else if (!UI.whatsNew()) UI.playDataNotice();      // (each of them carries the play-data switch, until it has been seen)
+  } catch (e) { SW.telemetry.error(e && e.message, e && e.stack); }      // a notice that fails is a notice not shown: the game still starts
   const ico = document.createElement('link'); ico.rel = 'icon'; ico.href = SW.sprites.url('hammer', 'ember', 2); document.head.appendChild(ico);
 
   let last = performance.now(), saveT = 0, hiddenAt = 0;
