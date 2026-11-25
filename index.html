@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Smeltworks Idle</title>
-<link rel="stylesheet" href="css/game.css?v=0.100.6">
+<link rel="stylesheet" href="css/game.css?v=0.115.0">
 </head>
 <body>
 <div id="app">
@@ -20,7 +20,10 @@
   </header>
 
   <main id="main">
-    <section id="line" class="pane"></section>
+    <section id="left" class="pane">
+      <div id="shop"></div>
+      <div id="tab-skills" class="tab"></div>
+    </section>
 
     <section id="mid">
       <div id="fight" class="pane">
@@ -54,8 +57,8 @@
 
     <aside id="side" class="pane">
       <div id="goldbar" class="cur gold" data-tip-text="Gold"><i></i><b id="cur-gold">0</b><span>gold</span></div>
-      <div id="shop"></div>
-      <div id="tab-skills" class="tab"></div>
+      <div id="cursor"></div>
+      <div id="line"></div>
     </aside>
   </main>
 </div>
@@ -63,15 +66,15 @@
 <div id="tip" class="hidden"></div>
 <div id="modal" class="hidden"></div>
 
-<script src="js/data.js?v=0.100.6"></script>
-<script src="js/notes.js?v=0.100.6"></script>
-<script src="js/game.js?v=0.100.6"></script>
-<script src="js/telemetry.js?v=0.100.6"></script>
-<script src="js/sprites.js?v=0.100.6"></script>
-<script src="js/sprites2.js?v=0.100.6"></script>
-<script src="js/audio.js?v=0.100.6"></script>
-<script src="js/arena.js?v=0.100.6"></script>
-<script src="js/ui.js?v=0.100.6"></script>
-<script src="js/main.js?v=0.100.6"></script>
+<script src="js/data.js?v=0.115.0"></script>
+<script src="js/notes.js?v=0.115.0"></script>
+<script src="js/game.js?v=0.115.0"></script>
+<script src="js/telemetry.js?v=0.115.0"></script>
+<script src="js/sprites.js?v=0.115.0"></script>
+<script src="js/sprites2.js?v=0.115.0"></script>
+<script src="js/audio.js?v=0.115.0"></script>
+<script src="js/arena.js?v=0.115.0"></script>
+<script src="js/ui.js?v=0.115.0"></script>
+<script src="js/main.js?v=0.115.0"></script>
 </body>
 </html>

@@ -14,7 +14,7 @@ G.unseenNotes = () => notes().filter(n => n.id > (G.S.notes || 0)).sort((a, b) =
 G.seeNotes = () => { G.S.notes = Math.max(G.S.notes || 0, G.noteTop()); };
 G.fresh = function () {
   const S = {
-    v: 1, gate: 2, gold: 0, crafter: 0, runs: 0, hsOut: 1, tailIn: 1, notes: G.noteTop(),
+    v: 1, gate: 2, gold: 0, crafter: 0, runs: 0, hsOut: 1, tailIn: 1, col3: 1, k1at8: 1, notes: G.noteTop(),
     best: 1,                 // the deepest level ever reached
     bank: 0,                 // cores in hand: what runs have earned, less what the tree has cost
     tree: {},                // the nodes of the prestige tree that are held
@@ -22,6 +22,7 @@ G.fresh = function () {
     run: { drops: 0, kills: 0, time: 0, earn: 0, paid: 0 },      // what this run has done so far (earn: the cores it has earned, banked at prestige; paid: the highest level it has been paid for)
     level: 1, maxLevel: 1, fight: 0, auto: true,
     posts: [], bag: [], bench: null, uid: 1,
+    cur: { up: 0, sockets: [] },      // the cursor: its Upgrade rank this run, and its sockets (G.cursorSockets)
     stats: { kills: 0, clicks: 0, bosses: 0, fails: 0, gold: 0, drops: 0, bought: 0, time: 0, made: 0 },
     opts: { sound: true, buy: 1 }, seen: Date.now(), gps: 0,
   };
@@ -67,9 +68,12 @@ G.color = gem => D.SKILL[gem.sk].c;
 /* A skill's tier is rolled as it comes (dropped, bought, or with the run), whatever level it came from: one of the
    five, by odds that the tree's tier nodes tilt towards the top (D.tierOdds). */
 G.tierPoints = () => G.treeVal('tier');
-G.tierOdds = () => D.tierOdds(G.tierPoints());
-G.rollSkillTier = () => { const o = G.tierOdds(); let r = U.rng(); for (let t = 0; t < o.length; t++) { r -= o[t]; if (r <= 0) return t + 1; } return o.length; };
-G.dropLevel = () => 1 + D.TIER_LVLS * (G.rollSkillTier() - 1);      // (a tier, as the level it is kept as)
+/* ...and by how deep it came from: every D.TIER_DEPTH levels count as one more tier point, for that skill. A drop goes by
+   the level it dropped on, a skill bought or given by the deepest level of the run. (With no level given, the tree alone.) */
+G.depthPoints = lvl => lvl ? Math.floor((lvl - 1) / D.TIER_DEPTH) : 0;
+G.tierOdds = lvl => D.tierOdds(G.tierPoints() + G.depthPoints(lvl));
+G.rollSkillTier = lvl => { const o = G.tierOdds(lvl); let r = U.rng(); for (let t = 0; t < o.length; t++) { r -= o[t]; if (r <= 0) return t + 1; } return o.length; };
+G.dropLevel = lvl => 1 + D.TIER_LVLS * (G.rollSkillTier(lvl) - 1);      // (a tier, as the level it is kept as)
 /* A colour's real skills are a node on the tree. Until it is held, a skill of that colour comes as the colour's plain
    one: so what would have been this skill drops as. The colours' odds are the same either way. */
 G.colourOpen = c => G.treeVal(D.UNLOCK[c]) > 0;
@@ -88,36 +92,41 @@ G.dropHurry = function () {
 };
 /* is this enemy on fire enough to show it? (a burn fades out and never quite reaches nothing) */
 G.burning = e => !e.dead && e.burn > e.max * 0.0002;
-/* where a loose skill is: { gem, bag: index } or { gem, post: BENCH, i: socket }. Only the weapon on the bench has
-   sockets: the cursor has none (CURSOR is only its name in the damage meter).
+/* where a loose skill is: { gem, bag: index } or { gem, post: BENCH or CURSOR, i: socket }. Two things have sockets
+   a skill can be moved in and out of: the weapon on the bench, until it is equipped, and the cursor, always.
    The skills inside a made weapon are not found: they are its stats now, and nothing can reach them. */
 const CURSOR = G.CURSOR = -1, BENCH = G.BENCH = -2;
 G.find = function (id) {
   const S = G.S;
   let i = S.bag.findIndex(g => g.id === id);
   if (i >= 0) return { gem: S.bag[i], bag: i };
-  i = S.bench.sockets.findIndex(s => s.gem && s.gem.id === id);
+  i = S.bench ? S.bench.sockets.findIndex(s => s.gem && s.gem.id === id) : -1;
   if (i >= 0) return { gem: S.bench.sockets[i].gem, post: BENCH, i };
+  i = S.cur.sockets.findIndex(s => s.gem && s.gem.id === id);
+  if (i >= 0) return { gem: S.cur.sockets[i].gem, post: CURSOR, i };
   return null;
 };
-const getSock = (post, i) => G.S.bench.sockets[i].gem;
-const setSock = (post, i, gem) => { G.S.bench.sockets[i].gem = gem; };
-G.sockColor = (post, i) => G.S.bench.sockets[i].c;
-G.socketExists = (post, i) => post === BENCH && !!G.S.bench.sockets[i];
+const socks = post => post === CURSOR ? G.S.cur.sockets : G.S.bench ? G.S.bench.sockets : [];
+const getSock = (post, i) => socks(post)[i].gem;
+const setSock = (post, i, gem) => { socks(post)[i].gem = gem; };
+G.sockColor = (post, i) => post === CURSOR ? null : G.S.bench.sockets[i].c;      // the cursor's sockets have no colour: they take any skill
+G.sockGem = (post, i) => { const k = socks(post)[i]; return k ? k.gem : null; };
+G.socketExists = (post, i) => (post === BENCH || post === CURSOR) && !!socks(post)[i];
 /* a weapon takes one of each skill. Only the plain ones (Might, Hex, Aid) go in as many times as there are sockets:
    is there a copy of this skill in another socket of the weapon on the bench already? */
-G.dupe = (gem, i) => !D.SKILL[gem.sk].plain && G.S.bench.sockets.some((s, j) => j !== i && s.gem && s.gem.id !== gem.id && s.gem.sk === gem.sk);
-G.fits = (gem, post, i) => G.socketExists(post, i) && G.sockColor(post, i) === G.color(gem) && !G.dupe(gem, i);
+G.dupe = (gem, i, post) => !D.SKILL[gem.sk].plain && socks(post == null ? BENCH : post).some((s, j) => j !== i && s.gem && s.gem.id !== gem.id && s.gem.sk === gem.sk);
+G.fits = (gem, post, i) => G.socketExists(post, i) && (post === CURSOR || G.sockColor(post, i) === G.color(gem)) && !G.dupe(gem, i, post);
 /* the bag keeps itself in order: by colour, then by primary affix (the skills in the order D.SKILLS lists them, so
    every Ignite sits together), then the highest level first */
 const ORDER = { r: 0, b: 1, g: 2 };
 function toBag(gem) { const S = G.S; S.bag.push(gem); S.bag.sort((a, b) => ORDER[G.color(a)] - ORDER[G.color(b)] || D.ALL_SKILLS.indexOf(D.SKILL[a.sk]) - D.ALL_SKILLS.indexOf(D.SKILL[b.sk]) || b.aff.length - a.aff.length || b.lvl - a.lvl || a.id - b.id); }
 G.tidy = function () { const S = G.S, all = S.bag.splice(0); for (const g of all) toBag(g); };
-/* put a skill in a socket of the weapon on the bench. Whatever was there goes where the skill
+/* put a skill in a socket of the weapon on the bench, or of the cursor. Whatever was there goes where the skill
    came from if it fits, and to the bag if not. */
 G.socket = function (id, post, i) {
   const S = G.S, at = G.find(id);
-  if (!at || S.forge || !S.bench.made || !G.socketExists(post, i) || !G.fits(at.gem, post, i)) return false;      // (the bench is busy while a weapon is on the anvil)
+  const benchBusy = p => p === BENCH && (S.forge || !S.bench.made);      // (the bench is busy while a weapon is on the anvil; the cursor never is)
+  if (!at || benchBusy(post) || (at.bag == null && benchBusy(at.post)) || !G.socketExists(post, i) || !G.fits(at.gem, post, i)) return false;
   if (at.post === post && at.i === i) return false;
   const old = getSock(post, i);
   if (at.bag != null) S.bag.splice(at.bag, 1); else setSock(at.post, at.i, null);
@@ -127,15 +136,16 @@ G.socket = function (id, post, i) {
   return true;
 };
 G.unsocket = function (id) {
-  const at = G.find(id); if (!at || at.bag != null || G.S.forge) return false;      // (not while it is on the anvil)
+  const at = G.find(id); if (!at || at.bag != null || (at.post === BENCH && G.S.forge)) return false;      // (not while it is on the anvil)
   setSock(at.post, at.i, null); toBag(at.gem);
   G.recompute(); emit('socket');
   return true;
 };
-/* the first empty socket on the bench that this skill fits */
+/* the first empty socket this skill fits: on the bench if there is a weapon there to take it, and if not, the cursor's */
 G.autoSocket = function (id) {
   const S = G.S, at = G.find(id); if (!at || at.bag == null) return false;
-  for (let i = 0; i < S.bench.sockets.length; i++) if (!S.bench.sockets[i].gem && G.fits(at.gem, BENCH, i)) return G.socket(id, BENCH, i);
+  if (S.bench && S.bench.made && !S.forge) for (let i = 0; i < S.bench.sockets.length; i++) if (!S.bench.sockets[i].gem && G.fits(at.gem, BENCH, i)) return G.socket(id, BENCH, i);
+  for (let i = 0; i < S.cur.sockets.length; i++) if (!S.cur.sockets[i].gem && G.fits(at.gem, CURSOR, i)) return G.socket(id, CURSOR, i);
   return false;
 };
 /* a skill has been looked at: it stops glowing */
@@ -168,10 +178,10 @@ const spend = n => { if (G.S.gold < n) return false; G.S.gold -= n; return true;
 G.buyCost = () => Math.ceil(D.buyCost(D.PRICE_LVL) * (1 - Math.min(75, G.treeVal('cheap')) / 100));
 /* which one is not yours to choose: it goes by the bag, an empty row first (pickKind) */
 G.buySkill = function () {
-  const S = G.S; if (!G.skillsOn() || !G.treeVal('uBuy')) return false;       // buying is a node on the tree
+  const S = G.S; if (!G.skillsOn()) return false;       // the Market comes with the first socket
   const open = D.SKILLS.map(k => D.SKILL[G.dropOf(k)]).filter(k => G.hasRoom(k.id));        // only a skill whose row has room
   if (!open.length || !spend(G.buyCost())) return false;
-  const gem = G.rollGem(G.dropLevel(), false, pickKind(open.map(k => k.id)), S.maxLevel);      // an empty row first, as with drops
+  const gem = G.rollGem(G.dropLevel(S.maxLevel), false, pickKind(open.map(k => k.id)), S.maxLevel);      // an empty row first, as with drops
   G.give(gem); S.stats.bought = (S.stats.bought || 0) + 1;
   emit('bought', { gem });
   return gem;
@@ -194,7 +204,7 @@ const craftMult = () => 1 - Math.min(75, G.treeVal('craft')) / 100;
 /* (working on a skill's affixes is dear: 26 to take one off, 39 to roll them again, 52 to add one, 156 for a third, where a reroll of the weapon is 26.
    Prices are fixed, so this is where a deep run's gold goes: a whole line of third affixes is a long saving.) */
 D.CRAFTS = [
-  { id: 'strip',  name: 'Remove affix', price: 'strip', mult: 2.6, can: g => g.aff.length > 0, why: 'No affix', text: () => 'One, at random' },
+  { id: 'strip',  name: 'Remove affix', price: 'strip', mult: 2.6, node: 'cAdd', can: g => g.aff.length > 0, why: 'No affix', text: () => 'One, at random' },
   { id: 'recast', name: 'Reroll affixes', price: 'recast', mult: 3,   can: g => g.aff.length > 0, why: 'No affix', text: () => 'New affixes' },
   { id: 'add',    name: 'Add an affix', price: 'recast', mult: 4,   node: 'cAdd', can: g => g.aff.length < 2, why: 'Has two already', text: () => 'One more affix' },
   { id: 'third',  name: 'Add a third affix', price: 'recast', mult: 12,  node: 'cThird', can: g => g.aff.length === 2, why: 'Needs two affixes', text: () => 'A third affix' },
@@ -214,7 +224,7 @@ G.craft = function (kind, id) {
   else if (kind === 'add' || kind === 'third') gem.aff.push(G.rollAffix(gem));
   else if (kind === 'morph') {
     const others = D.SKILLS.map(k => G.dropOf(k)).filter(id => id !== gem.sk); if (others.length) gem.sk = U.pick(others);
-    if (at.bag == null && G.sockColor(at.post, at.i) !== G.color(gem)) { setSock(at.post, at.i, null); toBag(gem); }       // it no longer fits its socket
+    if (at.bag == null && at.post !== CURSOR && G.sockColor(at.post, at.i) !== G.color(gem)) { setSock(at.post, at.i, null); toBag(gem); }       // it no longer fits its socket (the cursor's take any)
     else G.tidy();
   }
   G.recompute(); emit('forge', { kind });
@@ -253,11 +263,17 @@ G.hasSpare = () => G.treeVal('bench2') > 0;
 /* the panes and buttons there are to use right now, by name: what the tree has unlocked */
 G.features = function () {
   const S = G.S, f = {};
+  if (G.treeVal('uClick')) f.upcursor = 1;
   if (S.posts.length) f.troops = 1;
   if (G.skillsOn()) f.skills = 1;
   if (S.posts.length && G.treeVal('uReroll')) f.rerolls = 1;
   if (S.posts.length && G.treeVal('uUp')) f.upgrade = 1;
-  if (G.skillsOn() && G.treeVal('uBuy')) f.market = 1;
+  if (G.skillsOn()) f.market = 1;
+  // a weapon slot past the first, a socket on the bench past the first, and each socket of the cursor's: lit the first time a run has that many
+  if (S.posts.length > 1) f['slots' + S.posts.length] = 1;
+  if (S.posts.length && G.craftSockets() > 1) f['socks' + G.craftSockets()] = 1;
+  if (S.cur && S.cur.sockets.length) f['csocks' + S.cur.sockets.length] = 1;
+  if (G.skillsOn()) for (const sk of G.dropping()) f['sk-' + sk.id] = 1;      // each skill that can come to you: its name is lit the first time it can
   if (S.posts.length && G.hasSpare()) f.bench2 = 1;
   for (const c of D.CRAFTS) if (c.node && G.skillsOn() && G.treeVal(c.node)) f['craft-' + c.id] = 1;
   return f;
@@ -300,6 +316,19 @@ G.unitGems = u => u.sockets.map(s => s.gem).filter(Boolean);
 /* what scrapping a weapon pays: the salvage of the skills that went into it */
 G.scrapValue = u => G.unitGems(u).reduce((n, g) => n + G.salvageValue(g), 0) + Math.floor((u.upGold || 0) * D.UP.back);      // and half of what went into upgrading it
 /* Upgrading: with the tree's Upgrade node a weapon on the line can be struck up a rank for gold (D.UP) */
+/* The cursor is upgraded with gold as a weapon is, once the tree's first node (Cursor upgrade) is held: a strike adds
+   one to three ranks, each rank D.CUP.dmg% of its blow, and costs more the higher it stands. It lasts the run. */
+G.cursorSockets = () => (G.treeVal('sock') ? 1 : 0) + G.treeVal('cSock');
+G.curMult = () => 1 + D.CUP.dmg / 100 * ((G.S.cur && G.S.cur.up) || 0);
+G.curUpCost = () => Math.ceil(D.CUP.cost * D.gold(D.PRICE_LVL) * Math.pow(D.CUP.step, G.S.cur.up || 0));
+G.canUpCursor = () => !!(G.treeVal('uClick') && (G.S.cur.up || 0) < D.CUP.max && G.S.gold >= G.curUpCost());
+G.upCursor = function () {
+  const S = G.S; if (!G.canUpCursor()) return false;
+  const c = G.curUpCost(), was = S.cur.up || 0, gain = Math.min(D.CUP.max - was, D.UP.gain[0] + Math.floor(U.rng() * (D.UP.gain[1] - D.UP.gain[0] + 1)));
+  S.gold -= c; S.cur.up = was + gain;
+  G.recompute(); emit('upgrade', { post: CURSOR, rank: S.cur.up, gain });
+  return true;
+};
 G.upMult = u => 1 + D.UP.dmg / 100 * (u.up || 0);
 G.upCost = u => Math.ceil(D.UP.cost * D.gold(D.PRICE_LVL) * Math.pow(D.UP.step, u.up || 0));
 G.canUpgrade = post => { const S = G.S, P = S.posts[post]; return !!(G.treeVal('uUp') && P && P.unit && (P.unit.up || 0) < D.UP.max && S.gold >= G.upCost(P.unit)); };
@@ -371,6 +400,8 @@ G.swapPosts = function (a, b) {
 /* A run earns cores (D.CORE, for each level it clears); prestige banks them; nodes are bought with them (D.PRICE) */
 G.cores = () => G.S.bank || 0;
 G.runCores = () => (G.S.run && G.S.run.earn) || 0;
+/* what clearing a level is worth to this run: all of D.CORE if no run before this one cleared it, D.CORE_OLD of it if one did */
+G.coreFor = lvl => D.CORE(lvl) * (lvl > D.CORE_FREE && lvl < ((G.S.run && G.S.run.deep) || 1) ? D.CORE_OLD : 1);      // (the first D.CORE_FREE levels always pay in full)
 G.spent = () => Object.keys(G.S.tree).length;      // how many nodes are held
 G.has = id => id === 'start' || !!G.S.tree[id];
 /* what the held nodes of one kind add up to */
@@ -393,7 +424,7 @@ G.skillsOn = () => G.craftSockets() > 0;
 /* a node can be bought, between runs, if it touches one that is held (or the start) and there are the cores for it */
 /* ...and, after the first weapon, Upgrade and the socket come before anything else (D.TREE_FIRST) */
 G.firstHeld = () => D.TREE_FIRST.every(G.has);
-G.gated = id => !D.TREE_GATE.includes(id) && !D.TREE_FIRST.includes(id) && !G.firstHeld();
+G.gated = id => !D.TREE_GATE.includes(id) && !D.TREE_FIRST.includes(id) && !G.firstHeld() && !(D.TREE_WITH[id] && G.has(D.TREE_WITH[id]));
 G.touches = id => { const n = D.NODE[id]; return !!n && !G.has(id) && !G.gated(id) && n.near.some(G.has); };
 G.canAllocate = id => G.S.alloc && G.touches(id) && G.cores() >= G.nodeCost(id);
 G.allocate = function (id) {
@@ -421,18 +452,18 @@ function newRun() {
   S.gold = G.treeVal('purse') * D.PURSE;      // Purse nodes: each one the gold to set a weapon up (D.PURSE)
   S.bag = []; for (const P of S.posts) P.unit = null;
   S.bench = G.blankBench(); S.spare = null;
-  S.run = { drops: 0, kills: 0, time: 0, earn: 0, paid: 0 };
+  S.run = { drops: 0, kills: 0, time: 0, earn: 0, paid: 0, part: 0, deep: S.best || 1 };      // (deep: levels below this were cleared in a run before, and pay less)
   for (let i = 0, n = G.skillsOn() ? G.treeVal('kit') : 0; i < n; i++) {
     let sk = i < S.bench.sockets.length ? D_pick(S.bench.sockets[i].c, S.bag.map(g => g.sk)) : G.dropOf(U.pick(D.SKILLS));
     if (!G.hasRoom(sk)) sk = U.pick(G.dropping().filter(k => G.hasRoom(k.id))).id;
-    const g = G.rollGem(G.dropLevel(), false, sk, S.maxLevel); g.nw = 1; toBag(g);
+    const g = G.rollGem(G.dropLevel(S.maxLevel), false, sk, S.maxLevel); g.nw = 1; toBag(g);
   }
   if (G.skillsOn() && G.treeVal('kitAll')) fullKit();
 }
 /* a skill of this colour, and not one of these (a weapon takes one of each): the plain one if there is nothing else left */
 const D_pick = (c, not) => { const ks = D.SKILLS.filter(k => k.c === c).map(k => G.dropOf(k)).filter(id => !not || D.SKILL[id].plain || !not.includes(id)); return ks.length ? U.pick(ks) : D.PLAIN[c].id; };
 /* the Full kit: one of every kind of skill there is to drop, as the run begins */
-function fullKit() { const S = G.S; for (const k of G.dropping()) if (G.hasRoom(k.id)) { const g = G.rollGem(G.dropLevel(), false, k.id, S.maxLevel); g.nw = 1; toBag(g); } }
+function fullKit() { const S = G.S; for (const k of G.dropping()) if (G.hasRoom(k.id)) { const g = G.rollGem(G.dropLevel(S.maxLevel), false, k.id, S.maxLevel); g.nw = 1; toBag(g); } }
 /* the first run can be reset once it has reached level D.PRESTIGE_AT; after the first prestige, any run at any time */
 G.canPrestige = () => !G.S.alloc && (G.S.runs > 0 || G.S.maxLevel >= D.PRESTIGE_AT);
 /* prestige: the run ends here. Levels, gold, weapons and skills go, and the tree opens: nothing more happens until
@@ -456,6 +487,7 @@ G.beginRun = function () {
   S.alloc = false; delete S.fresh;                // the tree is fixed until the run ends (S.fresh: left by saves from when only a node bought that visit could be handed back)
   S.posts = []; for (let i = 0, n = Math.min(D.POSTS_MAX, D.POSTS0 + G.treeVal('post') + G.treeVal('post2')); i < n; i++) S.posts.push({ unit: null });
   S.crafter = Math.min(D.CRAFT.max - D.CRAFT.sockets0, G.treeVal('sock') + G.treeVal('sock2'));
+  S.cur = { up: 0, sockets: Array.from({ length: G.cursorSockets() }, () => ({ gem: null })) };      // the cursor starts each run bare: no ranks, empty sockets
   newRun();
   G.F = freshFight(); G.recompute();
   if (D.RUN_SECS > 0) { G.F.wait = D.RUN_SECS; G.F.opening = true; G.F.life = G.X.lifeMax; } else G.spawn();      // a moment at the forge before the first enemies come
@@ -481,8 +513,8 @@ function finish(h, glob) {
   const p = h.p, a = h.a, v = k => p[k] || 0, w = k => a[k] || 0;
   const T = G.treeVal, is = t => h.type === t;        // the prestige tree: what it does for this type of weapon, and for afflictions
   const W = {
-    dmg: h.base.dmg * h.q * (1 + w('dmg') / 100) * (1 + glob.warcry / 100) * (h.type ? 1 + (T('might') + T('dmg')) / 100 : 1 + (glob.click || 0) / 100),      // (Battle line and Whetstones: the weapons, not the cursor; Cursor damage affixes: the cursor, not the weapons)
-    aps: h.base.aps * (1 + w('aspd') / 100) * (1 + glob.rally / 100) * (is('sword') ? 1 + T('swd') / 100 : 1),
+    dmg: h.base.dmg * h.q * (1 + w('dmg') / 100) * (1 + glob.warcry / 100) * (h.type ? 1 + (T('might') + T('dmg')) / 100 : 1 + T('cDmg') / 100),      // (Battle line and Whetstones: the weapons, not the cursor; Heavy hand: the cursor, not the weapons)
+    aps: h.base.aps * (1 + w('aspd') / 100) * (1 + glob.rally / 100) * (is('sword') ? 1 + T('swd') / 100 : 1) * (h.type ? 1 : 1 + T('cSpd') / 100),      // (Quick hand: the cursor's own)
     crit: Math.min(100, D.CRIT + (h.base.crit || 0) + w('crit') + (is('dagger') ? T('dag') : 0)),
     critMult: (is('dagger') && T('dagN') ? 3 : D.CRIT_MULT) + v('savage') / 100,      // Deathblow adds to what a critical already deals
     carry: h.base.carry || 0,                    // how many more enemies a blow's overkill can go on to
@@ -497,7 +529,7 @@ function finish(h, glob) {
     nova: v('nova'),
   };
   W.arcN = h.base.arc ? 1 + (is('staff') && T('stfN') ? 2 : 0) : 0; W.arc = is('staff') ? h.base.arc + T('stf') : h.base.arc || 0;
-  W.radius = D.AOE.cursor; W.splashR = D.AOE.splash * (is('hammer') && T('hamN') ? 1.6 : 1); W.pierceW = D.AOE.pierce * (is('bow') && T('bowN') ? 2 : 1);
+  W.radius = D.AOE.cursor * (h.type ? 1 : 1 + T('cRad') / 100); W.splashR = D.AOE.splash * (is('hammer') && T('hamN') ? 1.6 : 1); W.pierceW = D.AOE.pierce * (is('bow') && T('bowN') ? 2 : 1);
   // power: an estimate of its damage per second against one enemy. Its own blows only: criticals, twin strikes,
   // burning and Shockwave are in it; area damage, afflictions and what it gives the rest of the line are not.
   const crit = 1 + W.crit / 100 * (W.critMult - 1);
@@ -506,7 +538,7 @@ function finish(h, glob) {
 }
 G.recompute = function () {
   const S = G.S, glob = { rally: 0, warcry: 0, ward: 0, gold: 0, time: 0, find: 0, click: 0, leech: 0 };
-  const hc = holder(D.CURSOR, 1, [], glob);            // the cursor holds no skills; the line's auras reach it all the same
+  const hc = holder(D.CURSOR, G.curMult(), ((S.cur && S.cur.sockets) || []).map(s => s.gem).filter(Boolean), glob);      // the cursor: its Upgrade ranks and the skills in its sockets; the line's auras reach it all the same
   const hu = S.posts.map(P => P.unit ? holder(D.WEAPONS[P.unit.type], P.unit.q * G.upMult(P.unit), P.unit.sockets.map(s => s.gem).filter(Boolean), glob, P.unit.type) : null);
   const X = G.X = {
     cursor: finish(hc, glob), units: hu.map(h => h ? finish(h, glob) : null), glob,
@@ -517,6 +549,13 @@ G.recompute = function () {
     // the tree's afflictions, read once here: the tree cannot change during a run
     novaEvery: G.novaEvery(), chillDmg: G.treeVal('chillN') ? 15 : 0, britMax: D.BRITTLE.max, cull: G.treeVal('cull') ? D.CULL : 0, stunImmune: G.treeVal('stunN') ? 1 : D.STUN.immune, wildfire: !!G.treeVal('burnN'),
   };
+  // Cursor damage: a weapon that carries the affix adds that share of its own blow to the click. It is added after
+  // the cursor's ranks and nodes, which multiply the cursor's own 6 and not what the weapons lend it. In a cursor
+  // socket the affix is a share of the click itself, lent damage and all, and what it adds is click damage too, so it
+  // feeds on itself: with a share r in the cursor's sockets the click is 1 / (1 - r) of what it was. (r is held under
+  // D.CLICK_SELF, so that more sockets or higher tiers can never run it away)
+  { const own = X.cursor.dmg; let lent = 0; hu.forEach((h, i) => { if (h) lent += (h.a.click || 0) / 100 * X.units[i].dmg; });
+    const r = Math.min(D.CLICK_SELF, (hc.a.click || 0) / 100), all = (own + lent) / (1 - r); X.cursor.own = own; X.cursor.lent = all - own; X.cursor.power *= all / own; X.cursor.dmg = all; }
   X.cooldown = Math.max(D.CURSOR.minCd, 1 / X.cursor.aps);                 // seconds between the cursor's blows
   // more Life to hold (a weapon made, a Life affix) is Life in hand at once; less is only a lower ceiling
   if (G.F) { if (G.F.lifeMax != null && X.lifeMax > G.F.lifeMax && G.F.life > 0) G.F.life += X.lifeMax - G.F.lifeMax; G.F.lifeMax = X.lifeMax; if (G.F.life > X.lifeMax) G.F.life = X.lifeMax; }
@@ -614,7 +653,7 @@ G.spawn = function () {
   F.es = es;
   // each one's place in the group is where it starts, and the group may wander as far as keeps them all on the field
   let reach = 0; for (const e of es) { e.ox = e.x; e.oy = e.y; reach = Math.max(reach, Math.hypot(e.x, e.y) + e.r + D.ROAM.leash); }
-  F.roam = { x: 0, y: 0, tx: 0, ty: 0, R: Math.max(0, D.ROAM.field - reach), wait: 0.6 };
+  F.roam = { x: 0, y: 0, tx: 0, ty: 0, R: Math.max(0, D.ROAM.field - reach), wait: 0.15 };
   F.enc = { type, name, boss, actBoss: type === 'actboss', n: es.length, max: es.reduce((s, e) => s + e.max, 0), drop: (E[type] && E[type].drop) || 1, lost: false };
   /* Tailwind: the fight before this one was won in under a second, and the tree's Tailwinds rolled this one away. It is
      made as it would have been, and then not fought: it pays what its enemies would have paid, drops what it would
@@ -814,16 +853,12 @@ function spoils(enc) {
   if (starter && drops < 1) drops = 1;
   if (!G.skillsOn()) drops = 0;                   // until weapons have a socket there are no skills at all
   else S.run.owed = U.clamp(owed + want - drops, -3, 3);
-  while (drops-- > 0) G.give(G.rollGem(G.dropLevel(), enc.boss, starter ? starterSkill() : nextDrop(), S.level));
+  while (drops-- > 0) G.give(G.rollGem(G.dropLevel(S.level), enc.boss, starter ? starterSkill() : nextDrop(), S.level));
   S.run.far = Math.max(S.run.far == null ? -1 : S.run.far, G.fightNo()); (S.run.won || (S.run.won = {}))[G.fightNo()] = 1;
 }
-/* how many of the next fights a fast win waves through: none, one or two, by how many Tailwinds the tree holds (D.TAIL) */
-function tailRoll() {
-  const n = Math.min(G.treeVal('tail'), D.TAIL.odds.length); if (!n) return 0;
-  const o = D.TAIL.odds[n - 1]; if (U.rng() >= o[0]) return 0;
-  return o[1] > 0 && U.rng() < o[1] ? 2 : 1;
-}
-G.tailOdds = () => { const n = Math.min(G.treeVal('tail'), D.TAIL.odds.length); return n ? D.TAIL.odds[n - 1] : [0, 0]; };
+/* how many of the next fights a fast win waves through: one for each Tailwind the tree holds, D.TAIL.max at the most */
+G.tailSkips = () => Math.min(D.TAIL.max, G.treeVal('tail') * D.TAIL.per);
+const tailRoll = () => G.tailSkips();
 function won() {
   const S = G.S, F = G.F, enc = F.enc;
   if (!(F.life > 0)) F.life = 1;                  // the last blow landed as the last of your Life went: you stand, barely
@@ -840,7 +875,14 @@ function won() {
        that the run has not been paid for (the ones a Head start passed over, which it did not fight). It goes by the
        levels cleared, not by where the run began: a run that starts too deep and is driven back still earns for
        what it does clear. */
-    if (S.level > (S.run.paid || 0)) { let under = 0; for (let l = (S.run.paid || 0) + 1; l < S.level; l++) under += D.CORE(l); pay = D.CORE(S.level) + Math.floor(under * D.SKIP_PAY); S.run.paid = S.level; S.run.earn = G.runCores() + pay; }
+    /* ...and a level pays in full only the first time it is ever cleared. One cleared in an earlier run (below
+       S.run.deep, the deepest level there was when this run began, and past the first D.CORE_FREE) pays D.CORE_OLD of that: cores come from getting
+       deeper. Parts of a core are kept (S.run.part) and paid when they come to a whole one. */
+    const paidNow = S.level > (S.run.paid || 0);      // (the first time this run has cleared it)
+    if (S.level > (S.run.paid || 0)) {
+      let sum = G.coreFor(S.level); for (let l = (S.run.paid || 0) + 1; l < S.level; l++) sum += G.coreFor(l) * D.SKIP_PAY;
+      sum += S.run.part || 0; pay = Math.floor(sum + 1e-9); S.run.part = sum - pay; S.run.paid = S.level; S.run.earn = G.runCores() + pay;
+    }
     if (S.level === S.maxLevel) {
       S.maxLevel++; if (S.maxLevel > S.best) S.best = S.maxLevel;
       G.recompute();
@@ -848,7 +890,7 @@ function won() {
     }
     const done = S.level;
     if (S.auto) S.level = Math.min(S.level + 1, S.maxLevel);
-    F.wait = D.LEVEL_PAUSE; emit('leveldone', { level: done, pay, next: S.level, secs: D.LEVEL_PAUSE });      // the interlude
+    F.wait = D.LEVEL_PAUSE; emit('leveldone', { level: done, pay, next: S.level, secs: D.LEVEL_PAUSE, deeper: paidNow && done >= (S.run.deep || 1), half: paidNow && G.coreFor(done) < D.CORE(done) });      // the interlude
     return;
   }
   F.wait = D.SPAWN;
@@ -977,14 +1019,26 @@ G.patch = function (S) {
   // the second Head start on each branch beside the middle has moved out to a western bridge (the first stays where it was): one held from before comes back as cores, to be bought again out there
   if (!S.hsOut) { for (const id of ['HS3', 'HS4']) if (S.tree[id]) { S.bank = (S.bank || 0) + 3; delete S.tree[id]; } S.hsOut = 1; }
   // Head start is gone from the tree, and Tailwind stands where it stood: one held from before comes back as cores, and Tailwind is the player's to buy or not
+  // the cursor has sockets again, and ranks (S.cur: not the S.cursor of long ago, which is emptied into the bag below)
+  if (!S.cur) S.cur = { up: 0, sockets: [] };
   if (S.notes == null) S.notes = 0;      // a save from before there were patch notes has read none of them
   if (!S.tailIn) { for (const n of D.TREE) if (n.eff === 'tail' && S.tree[n.id]) { S.bank = (S.bank || 0) + 3; delete S.tree[n.id]; } S.tailIn = 1; }
+  // (nodes that are gone are paid back here, before whatever the tree no longer knows is dropped from the save)
+  // the click branch is two Cursor sockets now, and the way east to the first Weapon socket is one step: what stood on them comes back as cores
+  for (const [id, c] of [['CK2', 3], ['CK4', 4], ['CK5', 4], ['e2', 4], ['e3', 4]]) if (S.tree[id]) { S.bank = (S.bank || 0) + c; delete S.tree[id]; }
+  // the Market comes with the socket: a save that bought its node has the 5 cores back. And Rerolls stands where the
+  // first Whetstone north of the middle stood: one held is Rerolls now, or 3 cores if Rerolls was held already
+  if (S.tree.UBY) { S.bank = (S.bank || 0) + 5; delete S.tree.UBY; }
+  if (S.tree.N0) { if (S.tree.URR) S.bank = (S.bank || 0) + 3; else { S.tree.URR = 1; S.bank = (S.bank || 0) + 1; } delete S.tree.N0; }
+  // four Tailwinds are all that count, and the four out on the eastern bridges are gone: each one held is 3 cores back
+  for (const id of ['xb2', 'xb3', 'xd2', 'xd3']) if (S.tree[id]) { S.bank = (S.bank || 0) + 3; delete S.tree[id]; }
   for (const id in S.tree) if (!D.NODE[id]) delete S.tree[id];
   delete S.br2;
   // a save from when a level of depth was a point and a node cost one: what it had not spent becomes cores, and it keeps its tree
   if (S.bank == null) S.bank = Math.max(0, (S.best || 1) - 1 - Object.keys(S.tree).length);
   S.bank += back;
   if (S.run.earn == null) S.run.earn = 0;
+  if (S.run.deep == null) S.run.deep = S.best || 1;      // (a run from before levels cleared earlier paid less: what it has cleared is paid, and what is new to it from here pays in full)
   // a run from before levels were paid for by the highest one cleared: it has been paid up to where it stands, unless a Head start's levels were still owing
   if (S.run.paid == null) S.run.paid = S.run.skip ? 0 : Math.max(0, (S.maxLevel || 1) - 1);
   // and from before a fight paid less the second time: the run has won every fight up to where it stands
@@ -1001,6 +1055,20 @@ G.patch = function (S) {
   }
   // the first weapon is the middle node now, and what hung west of it hangs from Upgrade: a save that holds any of that holds Upgrade too
   if (!S.tree.UPG && ['URR', 'UMT', 'w1'].some(id => S.tree[id])) S.tree.UPG = 1;
+  // the tree's first node is the cursor's now (CL0), and the first weapon is beside it: anyone with a tree already has it.
+  // The way north runs through weapon Upgrade: a save that somehow went north without it is given it, so that nothing it holds is cut off
+  if (Object.keys(S.tree).length && !S.tree.CL0) S.tree.CL0 = 1;
+  if (S.tree.PU1 && !S.tree.UPG) S.tree.UPG = 1;      // (the Purse over the weapon hangs from Upgrade)
+  delete S.cadIn;
+  // a colour of skill costs 3 where it cost 4: one bought at 4 has the core back
+  if (!S.col3) { for (const id of ['UMT', 'UHX', 'UAD']) if (S.tree[id]) S.bank = (S.bank || 0) + 1; S.col3 = 1; }
+  // ...and the first Weapon socket 8 where it cost 14, as the second weapon does
+  // ...and Cull 5 where it cost 23, as Life does: the four first big things, one each way, are 8, 8, 5 and 5
+  if (!S.k1at8) { if (S.tree.K1) S.bank = (S.bank || 0) + 6; if (S.tree.SH) S.bank = (S.bank || 0) + 18; S.k1at8 = 1; }
+  if (S.tree.n1 && !S.tree.URR) S.tree.URR = 1;
+  // ...and the cursor has the sockets its tree gives, there and then, in the run it is in
+  { const want = (S.tree.F2 ? 1 : 0) + D.TREE.filter(n => n.eff === 'cSock' && S.tree[n.id]).reduce((x, n) => x + (D.TREE_EFF.cSock.amt[n.big ? 1 : 0] || 1), 0);
+    while (S.cur.sockets.length < want) S.cur.sockets.push({ gem: null }); }
   for (const k in F) if (S[k] == null) S[k] = F[k];
   S.stats = Object.assign(F.stats, S.stats); S.opts = Object.assign(F.opts, S.opts);
   // a save from before the crafter: its level is whatever your best weapon already had, the rack is gone, and the
@@ -1042,6 +1110,7 @@ G.patch = function (S) {
   S.bag.forEach(fix);
   for (const P of S.posts) if (P.unit) P.unit.sockets.forEach(s => fix(s.gem));
   // a skill on the bench whose colour has changed no longer fits its socket: back to the bag
+  for (const s of S.cur.sockets) fix(s.gem);
   if (S.bench) for (const s of S.bench.sockets) { fix(s.gem); if (s.gem && D.SKILL[s.gem.sk].c !== s.c) { S.bag.push(s.gem); s.gem = null; } }
   // a weapon holds one of each skill now (the plain ones apart): any second copy goes back to the bag
   const once = socks => { const seen = {}; return socks.filter(s => { if (!s.gem || D.SKILL[s.gem.sk].plain) return true; if (!seen[s.gem.sk]) return seen[s.gem.sk] = true; S.bag.push(s.gem); s.gem = null; return false; }); };

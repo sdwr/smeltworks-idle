@@ -34,7 +34,17 @@ A.toArena = (x, y) => ({ x: (x - cx) / sx, y: (y - cy) / sy });
 /* where the mouse is over the arena, in pixels (null when it has left): the cursor's circle is drawn there */
 A.hover = function (x, y) { hov = x == null ? null : { x, y }; };
 const byId = id => G.F.es.find(e => e.id === id);
-const state = id => { let a = anim.get(id); if (!a) anim.set(id, a = { flash: 0, cool: 0, swing: 0, dir: 0, out: 0 }); return a; };
+const state = id => { let a = anim.get(id); if (!a) anim.set(id, a = { flash: 0, cool: 0, swing: 0, dir: 0, out: 0, kick: 0, kdir: 0, cur: -9 }); return a; };
+/* Your own blow is the one thing in the arena you do with your hand, so it is the one thing that is loud: a cut where
+   it lands, sparks off what it hits, the enemy knocked back and flashed white, and when it kills, a burst and a jolt.
+   The weapons' blows stay quiet (a full line lands dozens a second). All of it is show: the rules know nothing of it.
+   STILL: someone who has asked for less motion gets the flash and the cut, and no knock, sparks or jolt. */
+const STILL = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+let jolt = 0;
+function sparks(x, y, n, c, speed, life) {      // (x, y in pixels: bits flung out from a point, falling as they go)
+  if (STILL) return;
+  for (let i = 0; i < n; i++) { const a = Math.random() * Math.PI * 2, v = speed * (0.45 + Math.random() * 0.75); add({ k: 'spark', px: x, py: y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - speed * 0.35, c, s: 2 + Math.random() * 2, life: life * (0.6 + Math.random() * 0.6) }); }
+}
 /* effects are kept quiet on purpose: a faint flash when an enemy is hit, a small step when it swings, and red at the
    edges only when a fight is lost */
 function eScale(e) {
@@ -49,7 +59,7 @@ function float(x, y, txt, color, size, life, still) {      // (still: it stays w
   if (floats.length > 70) floats.shift();
   floats.push({ x, y, vx: still ? 0 : (Math.random() - 0.5) * 26, vy: still ? -8 : -62 - Math.random() * 26, txt, color, size: size || 14, life: life || 0.9, max: life || 0.9 });
 }
-const add = o => { if (fx.length < 90) { o.max = o.life; fx.push(o); } };
+const add = o => { if (fx.length < 140) { o.max = o.life; fx.push(o); } };
 /* Blows take time to arrive, and the rules land them in an instant, so the arena starts early. It knows when each
    weapon will next strike (the rules count it down) and whom it would strike now, and sends the weapon itself, or
    its shot, on ahead to be there at that moment. If the target changes on the way, it turns towards the new one.
@@ -87,6 +97,7 @@ A.onEvent = function (ev) {
         if (Wd && Wd.splash > 0) add({ k: 'ring', x: ev.x, y: ev.y, r: Wd.splashR, c: KIND.splash, life: 0.3 });
       } else {
         add({ k: 'burst', x: ev.x, y: ev.y, r: X.cursor.radius, life: 0.22 });
+        add({ k: 'slash', x: ev.x, y: ev.y, r: X.cursor.radius, ang: -0.9 + (Math.random() - 0.5) * 1.5 + (Math.random() < 0.5 ? Math.PI / 2 : 0), life: 0.17 });      // the cut: across the circle, a different way each time
         if (X.cursor.splash > 0) add({ k: 'ring', x: ev.x, y: ev.y, r: X.cursor.splashR, c: KIND.splash, life: 0.3 });
       }
       break;
@@ -102,6 +113,20 @@ A.onEvent = function (ev) {
       const e = byId(ev.id); if (!e) break;
       const a = state(e.id); if (a.cool <= 0) { a.flash = 0.05; a.cool = 0.35; }
       const main = ev.kind === 'main';
+      if (ev.who >= 0 && main) {     // a weapon's blow: the slower the weapon, the heavier it lands. A hammer knocks its target back and whitens it; a dagger or a bow does neither (and nothing here sparks or jolts: that is your own blow's)
+        const Wd = X.units[ev.who], wt = Wd ? U.clamp((1 / Math.max(0.1, Wd.aps) - 0.6) / 2.7, 0, 1) : 0;
+        if (wt >= 0.1) {
+          const k = STILL ? 0 : Math.sqrt(wt) * 0.85, p = G.postPos(ev.who);
+          if (k > (a.kick || 0)) { a.kick = k; a.kdir = Math.atan2((e.y - p.y) * sy, (e.x - p.x) * sx); }
+          if (!a.hard) { a.flash = Math.max(a.flash, 0.05 + 0.06 * wt); a.soft = wt; }
+        }
+      }
+      if (ev.who < 0 && main) {      // your own blow: it shows (see STILL)
+        a.flash = 0.12; a.hard = true; a.cur = t;
+        const p = hov ? A.toArena(hov.x, hov.y) : { x: 0, y: 0 }, dx = e.x - p.x, dy = e.y - p.y, far = Math.hypot(dx, dy);
+        a.kdir = far > 0.5 ? Math.atan2(dy * sy, dx * sx) : Math.random() * Math.PI * 2; a.kick = STILL ? 0 : 1;
+        sparks(X_(e.x), Y_(e.y), ev.crit ? 9 : 5, ev.crit ? '#ffe07a' : '#ffc890', ev.crit ? 190 : 130, 0.32);
+      }
       // a full line lands dozens of blows a second: every critical is shown, the rest only as fast as they can be read
       if (ev.crit ? floats.length < 45 : numCool <= 0) {
         if (!ev.crit) numCool = 0.06;
@@ -119,6 +144,11 @@ A.onEvent = function (ev) {
     case 'kill': {
       const e = byId(ev.id); if (!e) break;
       state(e.id).out = 0.001;
+      state(e.id).flash = Math.max(state(e.id).flash, 0.09);      // the blow that fells it always whitens it, whatever landed it (a fast weapon's flashes are rationed, and the last one could be the one left out)
+      if (state(e.id).cur === t) {      // it fell to your own blow, this very moment: a burst, a ring, and the ground jolts
+        sparks(X_(e.x), Y_(e.y), ev.boss ? 22 : 12, '#ffd27a', ev.boss ? 260 : 190, 0.5); sparks(X_(e.x), Y_(e.y), ev.boss ? 10 : 6, '#fff3d6', ev.boss ? 150 : 110, 0.4);
+        add({ k: 'puff', x: e.x, y: e.y, c: '#ffe9b0', life: 0.28 }); if (!STILL) jolt = Math.max(jolt, ev.boss ? 1 : 0.6);
+      }
       float(X_(e.x), Y_(e.y) - eScale(e) * 9, '+' + U.fmt(ev.gold), '#ffd27a', ev.boss ? 22 : 14, 1.2);
       break;
     }
@@ -246,7 +276,8 @@ function drawEnemy(e, enc, many, lit, dt) {
   if (alpha <= 0.01) return;
   // they burst out of the middle to their places
   const k = 1 - spawnT * spawnT, hop = Math.sin(a.swing * Math.PI) * (a.slam ? 4 : 2) * (e.stun > 0 ? 0 : 1);
-  const x = X_(e.x * k) + Math.cos(a.dir) * hop, y = Y_(e.y * k) + Math.sin(a.dir) * hop + (e.mv && !e.dead ? -Math.abs(Math.sin(t * 9 + e.id)) * 2.5 : Math.sin(t * 2.4 + e.id) * 1.5);       // a step when it walks, a sway when it stands
+  a.kick = Math.max(0, (a.kick || 0) - dt * 8); const kk = a.kick * a.kick * 7;      // knocked back by your own blow, and straight back again
+  const x = X_(e.x * k) + Math.cos(a.dir) * hop + Math.cos(a.kdir || 0) * kk, y = Y_(e.y * k) + Math.sin(a.dir) * hop + Math.sin(a.kdir || 0) * kk + (e.mv && !e.dead ? -Math.abs(Math.sin(t * 9 + e.id)) * 2.5 : Math.sin(t * 2.4 + e.id) * 1.5);       // a step when it walks, a sway when it stands
   ctx.globalAlpha = 0.4 * alpha; ctx.fillStyle = '#000';
   ctx.beginPath(); ctx.ellipse(X_(e.x * k), Y_(e.y * k) + h * 0.46, w * 0.34, h * 0.11, 0, 0, Math.PI * 2); ctx.fill();
   ctx.globalAlpha = 1;
@@ -259,8 +290,9 @@ function drawEnemy(e, enc, many, lit, dt) {
   const fr = SP.SHEETS[e.spr] ? SP.frame(e.spr, a.swing > 0 && !e.dead ? 'attack' : e.mv && !e.dead ? 'walk' : 'idle', a.swing > 0 && !e.dead ? 1 - a.swing : t + e.id * 0.37) : null;
   const flip = !!(SP.SHEETS[e.spr] && SP.SHEETS[e.spr].side && e.x < -0.5);      // one drawn in profile faces out from the middle
   SP.draw(ctx, e.spr, e.pal, x, y + (e.dead ? a.out * 8 : 0), sc, { ay: 0.5, alpha, fr, flip });
+  // the white of a blow landing (hard: your own blow, a white that is seen). On the one that falls to it too: it was skipped for the dead, and the killing blow looked as if it had not landed
+  if (a.flash > 0) SP.draw(ctx, e.spr, e.pal, x, y + (e.dead ? a.out * 8 : 0), sc, { ay: 0.5, alpha: (a.hard ? Math.min(0.75, 0.25 + a.flash * 5) : 0.22 + 0.3 * (a.soft || 0)) * alpha, mode: 'flash', fr, flip }); else { a.hard = false; a.soft = 0; }
   if (e.dead) return;
-  if (a.flash > 0) SP.draw(ctx, e.spr, e.pal, x, y, sc, { ay: 0.5, alpha: 0.22, mode: 'flash', fr, flip });
   // its swing: an arc cut into the air beside it, at nothing
   if (a.swing > 0) {
     const r = Math.max(22, Math.max(w, h) * (a.slam ? 0.8 : 0.6)), p = 1 - a.swing, ox = X_(e.x) + Math.cos(a.dir) * r * 0.55, oy = Y_(e.y) + Math.sin(a.dir) * r * 0.55;
@@ -288,6 +320,7 @@ A.draw = function (dt) {
   const key = S.level + ':' + W + ':' + H;
   if (!floor || key !== floorKey) { floorKey = key; paintFloor(act); }
   ctx.drawImage(floor, 0, 0, W, H);
+  if (jolt > 0) { jolt = Math.max(0, jolt - dt * 7); const j = jolt * jolt * 4; ctx.setTransform(dpr, 0, 0, dpr, (Math.random() - 0.5) * 2 * j * dpr, (Math.random() - 0.5) * 2 * j * dpr); }      // (a kill of your own: everything on the floor shakes for a moment)
   spawnT = Math.max(0, spawnT - dt * 3.2); vign = Math.max(0, vign - dt * 1.6); numCool -= dt; hurtCool -= dt;
 
   // the cursor's circle: where a click would land and what it would touch
@@ -399,6 +432,13 @@ A.draw = function (dt) {
       ctx.strokeStyle = f.c; ctx.lineWidth = 3 * (1 - p) + 1; ctx.globalAlpha = 0.8 * (1 - p);
       ctx.beginPath(); ctx.ellipse(X_(f.x), Y_(f.y), f.r * sx * (0.35 + 0.65 * p), f.r * sy * (0.35 + 0.65 * p), 0, 0, Math.PI * 2); ctx.stroke();
       ctx.fillStyle = f.c; ctx.globalAlpha = 0.12 * (1 - p); ctx.fill();
+    } else if (f.k === 'slash') {      // a bright cut across the cursor's circle, drawn fast and gone
+      const L = Math.max(16, f.r * sx * 1.5), q = Math.min(1, p * 2.6), ux = Math.cos(f.ang), uy = Math.sin(f.ang) * (sy / sx), x0 = X_(f.x) - ux * L, y0 = Y_(f.y) - uy * L;
+      ctx.lineCap = 'round'; ctx.strokeStyle = '#fff3d6'; ctx.globalAlpha = 0.95 * (1 - p); ctx.lineWidth = 4 * (1 - p) + 1;
+      ctx.beginPath(); ctx.moveTo(x0 + ux * 2 * L * Math.max(0, q - 0.75), y0 + uy * 2 * L * Math.max(0, q - 0.75)); ctx.lineTo(x0 + ux * 2 * L * q, y0 + uy * 2 * L * q); ctx.stroke(); ctx.lineCap = 'butt';
+    } else if (f.k === 'spark') {
+      f.px += f.vx * dt; f.py += f.vy * dt; f.vy += 520 * dt; f.vx *= 1 - 2.2 * dt;
+      ctx.fillStyle = f.c; ctx.globalAlpha = Math.min(1, 1.6 * (1 - p)); ctx.fillRect(Math.round(f.px - f.s / 2), Math.round(f.py - f.s / 2), Math.ceil(f.s), Math.ceil(f.s));
     } else if (f.k === 'puff') {
       ctx.strokeStyle = f.c; ctx.lineWidth = 2; ctx.globalAlpha = 0.8 * (1 - p);
       ctx.beginPath(); ctx.arc(X_(f.x), Y_(f.y), 4 + 9 * p, 0, Math.PI * 2); ctx.stroke();

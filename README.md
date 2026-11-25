@@ -56,9 +56,16 @@ It is a separate game from `../smeltworks` and shares nothing with it at run tim
 - **The cursor** is aimed. Inside the arena the system pointer is hidden and the cursor's circle is the pointer,
   so there is nothing for it to trail behind. A click lands on every enemy the circle touches; a click on empty
   floor does nothing. Each blow starts a one-second cooldown, and holding the button strikes the moment it is
-  up. The cursor has **no sockets**: its blow is 6 from first to last. The line's two auras reach it (a Damage
-  Aura adds to the blow, an Attack Speed Aura shortens the cooldown), and it gains from what your weapons have
-  done to the enemy. It gets a new game started; after that the weapons do the work.
+  up. Its card is at the top of the right-hand pane, under the gold and over the weapons. Its blow is 9, every second and a half, to begin with (6 damage a second), and two things
+  on the tree make more of it. **Cursor upgrade**, the tree's first node, lets gold be spent on it: an Upgrade button
+  on its card, a rank to three a time like a weapon's, +15% of its base damage a rank, twelve ranks (+180% at the top), the price
+  starting at 3 kills' gold (10) and rising by half a rank; the ranks last the run. And the cursor has
+  **sockets**: one comes with the Skills node (the first socket), two more are on the click branch, which runs out of the block's north-east corner. A cursor socket
+  takes a skill of any colour, one of each as a weapon does, and unlike a weapon's the skill comes out again
+  whenever you like (right click, or drag it away). Right click on a skill in the bag fills the bench first, if
+  the weapon there has a socket it fits, and the cursor if not. The sockets are emptied when a run ends. The
+  line's two auras reach it (a Damage Aura adds to the blow, an Attack Speed Aura shortens the cooldown), and it
+  gains from what your weapons have done to the enemy.
 - **Weapons.** A weapon is its type and the skills that went into it: there is no quality roll, and every
   sword is the same sword. Nothing is levelled
   up, and a weapon never changes once made.
@@ -70,7 +77,7 @@ It is a separate game from `../smeltworks` and shares nothing with it at run tim
   | Bow | Pierces everything in its line for 50% |
   | Axe, sword, dagger | One target, and about a quarter more damage to it |
 
-- **The Forge**, at the top of the right-hand pane, is an anvil and a bench (it is "the crafter" in what follows, and in the code). **Forge weapon** costs gold and puts a new
+- **The Forge**, at the top of the left-hand pane, over the skills, is an anvil and a bench (it is "the crafter" in what follows, and in the code). **Forge weapon** costs gold and puts a new
   weapon on the bench: a random type, and a roll of sockets: every socket the tree has unlocked 45% of the time with two unlocked, 40% with three and 35% with four or more (up to six); otherwise one short, or 15% of the time two short, never fewer than one. Sockets it missed show as faint outlines. Set skills in its
   sockets; they go in and out freely. With the tree's **Rerolls** node you can reroll its **type** alone or its
   **sockets** alone (their colours, never how many: a weapon that rolled short stays short), for gold, with the same second and a half at the anvil and the same three blows as a new weapon, and the same ring and shine when it is done. Either costs 1.6 times a new weapon (8 kills' gold against 5), since it keeps the half you liked; the whole weapon again is **New** (the same price as Make: a different weapon,
@@ -116,7 +123,7 @@ It is a separate game from `../smeltworks` and shares nothing with it at run tim
   | 15 | 3% | 6% | 12% | 26% | 54% |
   | all 19 | under 1% | 2% | 6% | 20% | 72% |
 
-  **The upper tiers are not there to begin with.** Tier 3 is first seen with three tier points, tier 4 with six and tier 5 with ten: each is rare when it first appears and comes into its full share six points later.
+  **The upper tiers are not there to begin with.** Tier 3 is first seen with three tier points, tier 4 with six and tier 5 with ten: each is rare when it first appears and comes into its full share six points later. **Depth counts too:** every six levels a skill comes from are one more tier point for that skill (a drop goes by the level it dropped on, a bought skill by the run's deepest), so with no tier node at all tier 3 is first seen at level 19, tier 4 at 37 and tier 5 at 61.
 
   **Each tier has its own colour**, the same wherever a tier is shown (an affix's tag, a skill's badge, its crafting): T1 dim grey, T2 pale, T3 cream, T4 gold, T5 gold filled in. A tier 2 affix looks the same on every skill, whether or not it is the best that skill could roll.
 
@@ -126,13 +133,13 @@ It is a separate game from `../smeltworks` and shares nothing with it at run tim
 
   | Secondary affix | T1 | T2 | T3 | T4 | T5 |
   | --- | --- | --- | --- | --- | --- |
-  | Damage | +25% | +35% | +43% | +48% | +50% |
+  | Damage | +40% | +56% | +68% | +76% | +80% |
   | Attack speed | +12% | +17% | +20% | +23% | +24% |
   | Critical chance (a critical is double; triple with Deathblow) | +6% | +8% | +10% | +11% | +12% |
   | Boss damage | +35% | +49% | +60% | +67% | +70% |
   | Gold, for the whole line | +12% | +17% | +20% | +23% | +24% |
   | Life, for the whole line (+200 at most) | +20 | +28 | +34 | +38 | +40 |
-  | Cursor damage: the cursor only, from any weapon on the line | +40% | +56% | +68% | +76% | +80% |
+  | Cursor damage: adds this share of the damage of the weapon that carries it to every click (in a cursor socket it is a share of the whole click, lent damage and its own addition included, so it feeds on itself: a total share r there makes the click 1 ÷ (1 − r) of what it was, ×1.19 for one at 16%, ×1.92 for three; r is held at 75%) | 8% | 11% | 14% | 15% | 16% |
   | Life on kill, for the whole line (+5 a kill at most) | +1 | +1.4 | +1.7 | +1.9 | +2 |
 
   The last two are there to be passed over as often as wanted: Cursor damage does nothing for a line left to fight alone, and Life on kill gives little against a boss. With them, damage, attack speed and criticals are under half of what an affix rolls as (25 in 52; it was 25 in 40).
@@ -176,20 +183,20 @@ It is a separate game from `../smeltworks` and shares nothing with it at run tim
 - **A node's price is always above it** on the tree, whatever its shape.
 - **There is no total dps in the top bar**: each weapon's card has its own.
 - **An enemy's blow can be heard.** It was a faint low hum, lost under a line of weapons and below what small speakers play; it is a dull knock now, and a slam a heavier one.
-- **The left-hand pane.** The cursor's card and the Weapons heading stay where they are; the weapons scroll beneath them in a box of their own, which keeps its place when the pane is drawn again.
-- **Gold is for getting deeper.** A fight pays **double** its gold the first time it is won in a run, and **half** whenever it is won again: a four-fold difference, for every fight, bosses and the rest alike. The run remembers the furthest fight it has won, so going back over cleared levels, or over the first fights of a level that keeps beating you, pays half. A whole level is worth about 39 kills of gold the first time (it was 19) and under 10 when it is fought again.
-- **Gold** is shown large across the top of the right-hand pane, over the crafter and the skills it is spent on.
+- **The two side panes.** Left: the Forge, and the skills under it (nothing is drawn there until the tree gives one or the other). Right: gold, the cursor, and the weapons under it. The Weapons heading stays where it is; the weapons scroll beneath it in a box of their own, which keeps its place when the pane is drawn again.
+- **Gold is for getting deeper.** A fight pays **1.3 times** its gold the first time it is won in a run, and **half** whenever it is won again: a 2.6-fold difference, for every fight, bosses and the rest alike. The run remembers the furthest fight it has won, so going back over cleared levels, or over the first fights of a level that keeps beating you, pays half. A whole level is worth about 39 kills of gold the first time (it was 19) and under 10 when it is fought again.
+- **Gold** is shown large across the top of the right-hand pane, over the cursor and the weapons.
   It glints, and the amount floats up beside it, as gold comes in.
   **Prices are fixed, and gold grows a little.** Everything gold buys is priced in kills' worth at level 1 and costs the same all run, however deep you are: a weapon, a reroll, a strike at the anvil, a skill bought or worked on. A kill's gold grows with depth, but slowly, and a whole level never pays more than a quarter over what level 1 does (an eighth more by level 13). What soaks up a deep run's gold is working on affixes: 26 to remove one, 39 to reroll them, 52 to add one and 156 for a third, against 26 to reroll a weapon. A level pays as its kills do: every boss is worth the same, 7.5 kills, whichever kind it is, and every act's rooms pay the same on average (within an act a room still pays by the life in it, so a pack pays more than a lone rat). So the deeper you fight, the more a kill buys. A fight still pays double the first time it is won in a run and half after: each fight is counted on its own, so levels a Head start skipped pay double their first time too.
   **Making a weapon costs gold**: five level 1 kills' worth (16), and takes a second
   and a half at the anvil (three blows of the hammer, each a tink and a burst of sparks; the bench is busy
   until the new weapon is on it). Equipping is free and immediate. So a run's first
   weapon has to be earned with the cursor, unless one of the tree's eight **Purse** nodes starts the run
-  with gold (125 each).
+  with gold (75 each).
 - **The tree is seen only by prestiging.** Your banked cores sit beside the Prestige button; there is no way
   to open the tree during a run.
 - **Locked things are not shown.** Until you hold the first weapon node there is no Weapons heading and no crafter; until
-  weapons have a socket there is no Skills part to the right-hand pane at all (that pane has no tabs: the in-game guide is gone, and the welcome box on a first visit, the hint line under the bag and the tooltips are what explain things); until their nodes are held, no reroll buttons and no Buy button.
+  weapons have a socket there is no Skills part to the left-hand pane at all (that pane has no tabs: the in-game guide is gone, and the welcome box on a first visit, the hint line under the bag and the tooltips are what explain things); until their nodes are held, no reroll buttons and no Buy button.
   The first run ever to have a pane opens with that pane **flashing**, and it, or any button that is new to
   you (rerolls, Buy, a way to craft), then **glows for 45 seconds**. The Prestige button reads plain
   "Prestige", greyed out, until it can be pressed; then **Prestige for N**, the cores this run has earned so far.
@@ -199,14 +206,15 @@ It is a separate game from `../smeltworks` and shares nothing with it at run tim
   dps is what it actually dealt over the last half minute, read every two and a half seconds.
 - **Prestige** is a tree, bought with **cores**. A level pays the first time a run clears it: 1 core for each of
   levels 1 and 2, 2 for 3 and 4, 3 for 5 to 7, and so on, two more for every five levels (level 50 pays 21, level 90 pays 37). So
-  a run to level 10 earns 23, to 20 earns 87, to 50 earns 519, to 90 about 1,650, and the same run made again pays the same
-  again. Prestige banks them. **Every node has a price** and can be bought only if it touches one you hold, and
+  a run to level 10 earns 23, to 20 earns 87, to 50 earns 519, to 90 about 1,650, the first time each level is ever cleared.
+  **A level some earlier run cleared pays half** (levels 1 to 5 always pay in full): cores come from getting deeper, and the
+  box that closes a level says which it was ("New depth: full cores" or "Cleared before: half cores"). Prestige banks them. **Every node has a price** and can be bought only if it touches one you hold, and
   **a node can be unspecced**: while the tree is open, click one you hold and its price returns to you (its tooltip reads "Unspec for ◆N"). Any node, whenever it was bought, one at a time, as long as everything else you hold still reaches the centre without it, so a branch comes apart from its tip inwards. There is no button that clears the whole tree.
 
   | Node | Price in cores |
   | --- | --- |
   | The first weapon; the socket and Upgrade beside it | 1; 2 each |
-  | The other unlocks | Rerolls 2; Might, Hex and Aid 4 each; Market 5; Life 5 |
+  | The other unlocks | Rerolls 2; Might, Hex and Aid 3 each; Life 5 (the Market comes with Skills) |
   | A Purse or a Tailwind | 3, wherever it is |
   | A small node | 2, and a half more for each step out from the middle: 3 near it, 12 at the tips |
   | A notable | five times a small node at the same distance: 18 to 60 |
@@ -218,30 +226,38 @@ It is a separate game from `../smeltworks` and shares nothing with it at run tim
   **Every price is the node's own and never moves**: buying one thing makes nothing else dearer. It is distance that costs: the two sides mirror each other, and the far hubs are the dear ones. The whole tree is about 3,940 cores. Prices are all in `D.PRICE`.
 
   **The first node is the one in the middle: the first weapon.** A new game has none: no weapon can be made.
-  **Upgrade and the Forge socket, the two beside it, come next, in either order: nothing else can be bought until
+  **The Weapon and Skills, the two beside it, come next, in either order: nothing else can be bought until
   both are held** (`D.TREE_FIRST`), whatever it touches, and neither can be unspecced while anything bought after
-  them is held. A locked node's tooltip says "Upgrade and Forge socket first". A save that bought past them when
+  them is held. A locked node's tooltip says "Weapon and Skills first". A save that bought past them when
   it could keeps what it has, and buys the missing one before anything more.
   **The tree is drawn in the same three steps**: the first weapon alone on a black page; then Upgrade and the
   socket beside it (each of those with a single ripple); then, a beat (0.7 s) after both of those are held, all of it, with a sound of its own, rippling out twice from the middle as it does
   when the page is opened. (Unspec one of the two and it closes again; a save that holds anything further out
   always sees all of it.)
   The cursor clears level 1 by itself in about half a minute: that is one core, and the first prestige
-  spends it there. **Two nodes lead out of it**, two cores each: the **first socket**
-  to the east (skills with it: from then on enemies drop them) or **Upgrade** to the west. Everything else on
-  the tree hangs from those two. With no socket there are no skills (nothing drops one and gold buys none).
+  spends it on the middle node, **Cursor upgrade**. The second run is the cursor again, with gold to spend on
+  it, and gets to about level 5. **Two nodes lead out of the middle**, two cores each: the **first weapon** to the
+  west and the **first socket** to the east (skills with it: from then on enemies drop them, and the cursor has
+  a socket to try them in). Everything else on the tree waits for those two. The block round the middle is nine nodes in
+  three columns: the weapon's to the west (**Upgrade** over it, **Might** under it), the cursor's in the middle
+  (**Rerolls** over it, on the way north to Life, and **Hex** under it) and the socket's to the east (**Broad stroke**
+  over it, a 40% wider cursor circle, with the click branch running straight out of the corner from it: two Cursor
+  sockets; **Aid** under it). The socket
+  node is called **Skills**: it gives weapons and the cursor their first socket, makes enemies drop skills, and
+  opens the **Market** (which was a node of its own). Further sockets are **Weapon socket** and **Cursor socket**. With no socket there are no skills (nothing drops one and gold buys none).
 
   **Upgrade** lets gold strike at a weapon on the line: the **Upgrade** button on its card. Each strike adds
-  **one to three ranks**, as it falls (the whole card flashes gold as the hammer lands), up to **+25**, and a rank is 3% more damage (+75% at the top). The rank
+  **one to three ranks**, as it falls (the whole card flashes gold as the hammer lands), up to **+25**, and a rank is 10% more damage (+250% at the top). The rank
   shows beside its name, as in Sword +7, and on a bar across the card. A strike costs 51 gold on a new weapon,
   and a fifth more for each rank the weapon already has: about 125 at +5, 315 at +10,
   780 at +15, 1,940 at +20. So it is never loose change, and the last few are a deep run's spare gold.
   Scrapping the weapon gives half of what went in back.
 
   **Level 3 is the wall.** The first two levels' enemies pull their blows (level 1 hits for two fifths; level 2 does not), so the cursor alone clears level 1 easily and level 2 with some Life to spare (aimed perfectly,
-  about three fifths of it). From level 3 everything has ten times the life, and
-  the cursor runs out of Life in its first few fights, however well you aim. A weapon deals sixteen
-  times what the cursor's measure would give it. The first line of one weapon still wants the cursor's help:
+  about three fifths of it). From level 3 everything has twice the life (and level 4 is a second, smaller step: its enemies have 45% more again, a little more than level 5's had, which wears off by level 10), and
+  the cursor alone runs out of Life before the level is done, most often at its boss. **A weapon starts about where
+  the cursor does** (7 or 8 damage a second to the cursor's 6): what it becomes is in its upgrades (+10% a rank)
+  and in its skills' affixes (Damage is +40% to +80%). The first line of one weapon still wants the cursor's help:
   it is the Life node, four steps north (16 cores with the three Whetstones on the way), that lets a line stand by itself.
 
   **Weapons, sockets and tiers are the tree's.** The middle node is one weapon and the node east of it one socket. **A line is six weapons at the most**: five more
@@ -277,23 +293,12 @@ It is a separate game from `../smeltworks` and shares nothing with it at run tim
 
   The north and south no longer have small nodes for one affliction each: those asked you to pick a skill before you had seen any. The fourteen small nodes there are Whetstones, plain weapon damage (+70% in all, added to the Battle lines' 60%), and the afflictions keep one notable each.
 
-  Cheap conveniences sit beside the middle, 3 cores each (as every Purse and Tailwind is, wherever it sits): a **Purse** (+125 gold at the start of a run: a weapon, a couple of rerolls for its sockets and a couple of skills from the Market) over Rerolls and another under Might, and beyond each Purse one **Tailwind** ("Skip some easy battles").
+  Cheap conveniences sit beside the middle, 3 cores each (as every Purse and Tailwind is, wherever it sits): a **Purse** (+75 gold at the start of a run: a weapon and a couple of skills from the Market) over Rerolls and another under Might, and beyond each Purse one **Tailwind** ("Skip some easy battles").
   On the other side, under Aid, is the **Full kit** (3 cores too): a run begins with one of every kind of skill there is to drop, the three plain ones or up to all ten.
-  **Tailwind.** A fight won within a second of its first blow landing is an easy one (so a slow weapon that ends it in one hit counts, however long the blow took to come round), and after an easy one the next fight may be waved through: it pays its gold (double the first time, as ever), rolls its drop and counts as won, and is not fought. A boss is never skipped and never sets a skip off, so every level opens with a fight and ends with its boss; and a skipped fight sets nothing off itself. There are eight Tailwinds, and they add up:
+  **Tailwind.** A fight won within a second of its first blow landing is an easy one (so a slow weapon that ends it in one hit counts, however long the blow took to come round), and after an easy one the next fight may be waved through: it pays its gold (1.3 times the first time, as ever), rolls its drop and counts as won, and is not fought. A boss is never skipped and never sets a skip off, so every level opens with a fight and ends with its boss; and a skipped fight sets nothing off itself. There are eight Tailwinds, and they add up:
 
-  | Tailwinds held | After an easy fight |
-  | --- | --- |
-  | 1 | 12% to skip the next |
-  | 2 | 27% |
-  | 3 | 45% |
-  | 4 | 65% |
-  | 5 | 90% |
-  | 6 | skips one, 20% a second |
-  | 7 | skips one, 55% a second |
-  | 8 | skips two |
-
-  The steps are sized so that each node takes about the same share, 8%, off the time an easy level takes: from about 14 seconds with none to about 7 with all eight. The first one bought reads "Skip some easy battles" and the rest "Skip more easy battles". (Tailwind stands where **Head start** stood, which began a run five levels in: that was a trap when taken early, and it skipped the gold and drops of the levels it passed. A Head start held from before comes back as cores.)
-  Four bridges of Purses (125 gold each; eight Purses and eight Tailwinds on the tree in all, and each Tailwind is on a branch off a Purse) join the ends of north
+  **One fight is waved through for each Tailwind held, four at the most** (there are four on the tree). With four, an easy level is the opening fight, four waved through, one fought, three waved through and the boss. The first one bought reads "Skip a battle after an easy one" and the rest "Skip one more battle after an easy one". (Tailwind stands where **Head start** stood, which began a run five levels in.)
+  Four bridges of Purses (75 gold each; eight Purses and four Tailwinds on the tree in all, and each Tailwind is on a branch off a Purse) join the ends of north
   and south to the arms, and each carries one notable for the long run: two **Deep veins** (two tier points each) and two **Battle line** (+15% damage for every weapon; there are four of those on the tree in all). The second bench lets the
   crafter set one weapon aside, skills and all, and work on another. The whole tree is 136 nodes. The eight Tailwinds are all side branches off a Purse, two beside the middle, one off each western bridge and two off each eastern: none stands on a path, so no route through the tree makes you take one.
   A weapon's nodes help only that type of weapon.
@@ -326,8 +331,8 @@ It is a separate game from `../smeltworks` and shares nothing with it at run tim
   in [js/notes.js](js/notes.js), which says how; while it is empty no window is shown. `index.html?notes` shows the window
   for looking at.
 - **The tree opens in steps.** A new player is not handed all 136 nodes at once: first the weapon in the middle, then
-  the two beside it, then the square of nine round it. With five of those nine held the inner tree shows, out to the
-  first big thing each way (the second weapon, the second socket, Life, Cull), and holding any one of those four opens
+  the two beside it, then the square of nine round it. With six of those nine held the inner tree shows, out to the
+  first big thing each way (the second weapon, the second socket, Life, Cull), and the ways north to Life and south to Cull are not shown until then, so in practice it is the second weapon and the first Weapon socket that open it: holding any two of those four opens
   the whole of it. What is not shown cannot be bought. The first three nodes, once bought, are kept for good.
 - **Away.** With the tab in the background the fight goes on. With the game shut you earn half your recent gold
   rate for up to eight hours; skills only drop while it is open.

@@ -5,6 +5,7 @@ const SW = globalThis.SW, G = SW.game, UI = SW.ui, AR = SW.arena;
 
 /* advance the game by dt seconds in small steps, handing what happened to the page (or dropping it, in the background) */
 function advance(dt, draw) {
+  if (SW.ui.waiting) return;      // the first box is up: the game has not begun
   let left = dt, guard = 0;
   while (left > 1e-6 && guard++ < 4000) {
     const s = Math.min(0.05, left); left -= s;

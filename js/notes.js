@@ -14,7 +14,7 @@
    - id      a whole number, one more than the entry before it. Never reuse or change one: it is how a save knows
              what it has read.
    - title   the heading over the entry (a version number, a name, a date: whatever you like).
-   - lines   plain text, one bullet each. No HTML.
+   - lines   plain text, one bullet each. No HTML. An empty line ('') leaves a gap between two groups of bullets.
 
    A player who has missed several updates sees the newest three, newest first, in one window. An entry with no
    lines is ignored, and while the list is empty no window is ever shown.
@@ -30,6 +30,16 @@ SW.notes = [
     'Provisions node has been removed from the prestige tree.',
     'Purse node has been increased to +125 starting gold.',
     'Modified how the prestige tree gets revealed during play.',
+  ] },
+  { id: 2, title: 'Version 0.115', lines: [
+    'moved UI sections around',
+    'weapons start weaker and grow more from upgrades and skill affixes',
+    'can upgrade cursor',
+    'can socket skills in cursor',
+    'rejigged prestige tree to (hopefully) improve early game pacing',
+    'reworked tailwind to skip more levels',
+    'reduced gold and core rewards',
+    'skill tiers now improve with level depth as well as skill tier nodes',
   ] },
 ];
 })();

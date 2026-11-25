@@ -97,10 +97,11 @@ const SND = {
   // the fight: it goes on all day, so these are short and dull rather than bright, and sit under everything else
   soft()     { noise({ f: 600, to: 250, dur: 0.05, vol: 0.072, q: 0.8 }); tone({ f: 130, to: 70, dur: 0.05, type: 'sine', vol: 0.081 }); },                 // a troop's blow
   softCrit() { noise({ f: 1100, to: 380, dur: 0.07, vol: 0.108, q: 0.8 }); tone({ f: 210, to: 80, dur: 0.09, type: 'triangle', vol: 0.099 }); },          // and its critical
-  tap()      { noise({ f: 800, to: 300, dur: 0.05, vol: 0.128, q: 0.8 }); tone({ f: 150, to: 70, dur: 0.06, type: 'triangle', vol: 0.128 }); },            // your own blow
-  tapCrit()  { noise({ f: 1500, to: 400, dur: 0.09, vol: 0.16, q: 0.7 }); tone({ f: 280, to: 70, dur: 0.12, type: 'triangle', vol: 0.136 }); },
+  tap(o)     { const r = o && o.rate || 1; noise({ f: 800 * r, to: 300 * r, dur: 0.05, vol: 0.128, q: 0.8 }); tone({ f: 150 * r, to: 70 * r, dur: 0.06, type: 'triangle', vol: 0.128 }); },            // your own blow
+  tapCrit(o) { const r = o && o.rate || 1; noise({ f: 1500 * r, to: 400 * r, dur: 0.09, vol: 0.16, q: 0.7 }); tone({ f: 280 * r, to: 70 * r, dur: 0.12, type: 'triangle', vol: 0.136 }); },
+  pop()      { tone({ f: 170, to: 60, dur: 0.09, type: 'triangle', vol: 0.16 }); noise({ f: 1100, to: 300, dur: 0.05, vol: 0.07, q: 0.6 }); },      // a kill by your own hand: one short dry thump. (It had a ring after it, and played over the ordinary kill sound: three sounds a few hundredths apart, which read as an echo)
   // (it was a faint low hum, lost under a line of weapons and below what small speakers play: now a dull knock that can be heard)
-  ouch()     { tone({ f: 180, to: 80, dur: 0.13, type: 'triangle', vol: 0.2 }); noise({ f: 380, dur: 0.06, vol: 0.11 }); },                                                                           // an enemy's swing
+  ouch()     { tone({ f: 180, to: 80, dur: 0.13, type: 'triangle', vol: 0.32 }); noise({ f: 380, dur: 0.06, vol: 0.17 }); },                                                                           // an enemy's swing
   ouchBig()  { tone({ f: 150, to: 42, dur: 0.34, type: 'triangle', vol: 0.31 }); noise({ f: 240, to: 70, dur: 0.26, vol: 0.21, ft: 'lowpass' }); },
   fall()     { noise({ f: 500, to: 120, dur: 0.12, vol: 0.072, q: 0.6 }); },                                                                               // a kill
   chink()    { tone({ f: 1320, dur: 0.04, type: 'sine', vol: 0.016 }); },                                                                                  // its gold

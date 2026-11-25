@@ -73,7 +73,10 @@ h4 { margin: 0; font: 600 15px var(--serif); letter-spacing: .04em; color: var(-
 #line .card.post .uprank { padding: 6px 15px; font-size: 14.5px; }
 #line .linehead h4 { font-size: 17px; }
 #mid { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 10px; min-height: 0; }
-#side { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto auto minmax(0, 1fr); }
+#side { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr); }       /* gold, the cursor, and the weapons under it */
+#left { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }       /* the Forge, and the skills that go into what it makes */
+#left.bare { visibility: hidden; }       /* neither yet: no empty box */
+#left > #tab-skills:first-child, #left > #shop.hidden + #tab-skills { grid-row: 1 / -1; }
 /* gold, where it is spent: across the top of the right-hand pane, and big */
 #goldbar { justify-content: center; gap: 10px; padding: 10px 12px; font-size: 30px; color: #ffe08a; background: linear-gradient(#241c10, #17130d); border-bottom: 1px solid #4a3a18; text-shadow: 0 0 14px rgba(255,200,80,.35); }
 #goldbar i { width: 22px; height: 22px; } #goldbar span { font: 600 13px var(--sans); color: #b89a58; text-transform: uppercase; letter-spacing: 1.5px; text-shadow: none; align-self: center; margin-top: 6px; }
@@ -266,13 +269,13 @@ button.buyskill { display: block; width: 100%; margin: 0 0 8px; padding: 11px 12
 #tab-skills > #detail { flex: 1 1 auto; min-height: 0; overflow-y: auto; margin-top: 0; }
 #tab-skills > .hint.keys { margin-top: 8px; }
 /* on the right the skills are what you are working with, so they are drawn large */
-#side .sock { width: 44px; height: 44px; }
-#side .gem { width: 38px; height: 38px; }
-#side .bsocks { gap: 7px; flex-wrap: nowrap; }
-#side .gem img { width: 30px; height: 30px; margin: 0; }
-#side .gem .glv { font-size: 12px; min-width: 19px; padding: 0 3px; border-radius: 9px; right: -6px; bottom: -6px; }
-#side .gem .pips { left: -7px; top: -7px; gap: 4px; padding: 3px 5px; border-radius: 10px; } #side .gem .pips i { width: 8px; height: 8px; }
-#side .gem .lock { font-size: 11px; }
+#left .sock, #side .sock { width: 44px; height: 44px; }
+#left .gem, #side .gem { width: 38px; height: 38px; }
+#left .bsocks, #side .bsocks { gap: 7px; flex-wrap: nowrap; }
+#left .gem img, #side .gem img { width: 30px; height: 30px; margin: 0; }
+#left .gem .glv, #side .gem .glv { font-size: 12px; min-width: 19px; padding: 0 3px; border-radius: 9px; right: -6px; bottom: -6px; }
+#left .gem .pips, #side .gem .pips { left: -7px; top: -7px; gap: 4px; padding: 3px 5px; border-radius: 10px; } #left .gem .pips i, #side .gem .pips i { width: 8px; height: 8px; }
+#left .gem .lock, #side .gem .lock { font-size: 11px; }
 #bag .gem { width: 86%; height: auto; aspect-ratio: 1; }
 #detail .name .gem { width: 44px; height: 44px; }
 #bag .slot { aspect-ratio: 1; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 3px; background: var(--panel); }
@@ -362,7 +365,7 @@ button.buyskill { display: block; width: 100%; margin: 0 0 8px; padding: 11px 12
 #tree.ripple.one.slow .node, #tree.ripple.one.slow .link { animation-duration: 1.5s; }
 /* the inner tree's ring: it goes out as far as that tree does and no further */
 #tree .ripwave.mid { animation-name: ripwavemid; }
-@keyframes ripwavemid { 0% { transform: scale(0); opacity: 0; } 10% { opacity: .32; } 60% { opacity: .18; } 100% { transform: scale(2.7); opacity: 0; } }
+@keyframes ripwavemid { 0% { transform: scale(0); opacity: 0; } 10% { opacity: .32; } 60% { opacity: .18; } 100% { transform: scale(3.55); opacity: 0; } }
 /* what was already on show when a wider tree is revealed stays as it is: no fading out and in again, only the ripple's glow as it passes */
 #tree.ripple .node.kept, #tree.ripple .link.kept { animation: ripglow 1.3s ease-in-out backwards; }
 #prestige.alloc #tree.ripple .link.next.kept { animation: linkflow 1.1s linear infinite; }
@@ -412,6 +415,7 @@ button.buyskill { display: block; width: 100%; margin: 0 0 8px; padding: 11px 12
 #modal h3 { margin: 0 0 8px; font: 700 20px var(--serif); color: var(--hot); }
 #modal p { color: var(--dim); line-height: 1.5; margin: 6px 0; } #modal p b { color: var(--text); }
 /* patch notes: a heading for each, and its lines */
+#modal h3 .ver { font: 400 12px var(--sans); color: var(--dim); letter-spacing: .03em; margin-left: 8px; vertical-align: middle; }      /* the game's version, beside Settings */
 #modal h3.sub { margin-top: 16px; font-size: 17px; }
 #modal .notes { max-height: 46vh; overflow-y: auto; margin: 4px 0 10px; text-align: left; }
 #modal .notes h4 { margin: 12px 0 4px; font: 600 14px var(--sans, sans-serif); color: var(--text); letter-spacing: .02em; }
@@ -468,3 +472,57 @@ button.buyskill { display: block; width: 100%; margin: 0 0 8px; padding: 11px 12
 .bench .pic.strike .anvil { animation: strike .22s ease-out; } .bench.forging .anvil::before { background: #ffb060; box-shadow: 0 0 12px #ff8a2a; }
 
 /* buying a post, and a socket, for gold */
+/* the cursor's own card, over the forge: its sockets and its upgrade sit under it */
+#cursor { padding: 9px 10px 0; }
+#cursor .card { padding: 10px 11px; gap: 5px 11px; }
+#cursor .card .who { flex-wrap: wrap; row-gap: 1px; } #cursor .card .who > b { font-size: 17px; overflow: visible; } #cursor .card .who .dps { flex-basis: 100%; margin-left: 0; }
+#cursor .csocks { grid-area: auto; grid-column: 1 / -1; margin-top: 4px; }
+#line.bare { display: none; }
+#cursor .card .uprow { min-height: 32px; gap: 11px; } #cursor .card .upbar { height: 9px; } #cursor .card .upn { font-size: 13.5px; } #cursor .card .uprank { padding: 5px 13px; font-size: 14px; }
+/* power is the number weapons are compared by: large and gold wherever a weapon is shown, with what it does in play (dps) beside it */
+#line .card.post .who .dps { display: flex; align-items: baseline; gap: 9px; } #line .card.post .who .dps .pw b { font-size: 21px; color: var(--gold, #ffcf5a); } #line .card.post .who .dps .pw { color: var(--text); }
+#line .card.post .who .dps .real { margin-left: auto; font-size: 13px; } #line .card.post .who .dps .real b { font-size: 14.5px; }
+#line .card.post .who .dps .weak { font: 700 10.5px var(--sans); font-style: normal; letter-spacing: .06em; text-transform: uppercase; color: #ff8a7a; border: 1px solid rgba(255,138,122,.45); border-radius: 4px; padding: 1px 5px; align-self: center; }
+.linehead { display: flex; align-items: baseline; } .linehead .linepw { margin-left: auto; color: var(--dim); font-size: 13px; } .linehead .linepw b { font: 700 15px var(--sans); color: var(--text); }
+.bench .who .dps.pw { color: var(--text); font-size: 14px; } .bench .who .dps.pw b { font-size: 21px; color: var(--gold, #ffcf5a); }
+.bench .who .cmp { font-size: 21px; line-height: 1; margin-left: 4px; }      /* the arrow beside the power: as tall as the number */
+/* a skill that has just become one you can find: its name glows in the list for a while */
+.bname.newname { animation: newname 1.8s ease-in-out infinite; animation-delay: var(--gd, 0s); }
+@keyframes newname { 0%, 100% { text-shadow: 0 0 3px currentColor; filter: brightness(1.15); } 50% { text-shadow: 0 0 10px currentColor, 0 0 20px currentColor; filter: brightness(1.7); } }
+@media (prefers-reduced-motion: reduce) { .bname.newname { animation: none; text-shadow: 0 0 8px currentColor; } }
+/* crafting has the whole of the Skills pane to itself: its text is large, and every skill is in a strip along the top to pick from */
+button.craftbtn { display: block; width: 100%; margin: 0 0 8px; padding: 8px 12px; font: 600 14.5px var(--sans); }
+.baghead .crafthead { margin: 0 0 0 4px; font-size: 17px; }
+.craftpick { display: flex; flex-wrap: wrap; gap: 9px; padding: 10px 6px 8px 10px; margin-bottom: 8px; max-height: 132px; overflow-y: auto; background: var(--panel2); border: 1px solid var(--line); border-radius: 4px; }
+#left .craftpick .gem { width: 44px; height: 44px; } .craftpick .gem.sel { outline: 2px solid var(--hot); outline-offset: 2px; }
+#detail { padding: 14px; } #detail .name { gap: 12px; margin-bottom: 10px; } #detail .name .gem { width: 56px; height: 56px; }
+#detail .name b { font-size: 23px; } #detail .name span { font-size: 15px; }
+#detail .aff { font-size: 16.5px; padding: 8px 0; gap: 10px; }
+#detail .forge { gap: 8px; margin-top: 12px; } #detail .forge button { font-size: 14.5px; padding: 9px 10px; } #detail .forge button small { font-size: 13px; margin-top: 2px; }
+#detail .hint { font-size: 14px; margin-top: 12px; } #detail .hint kbd { font-size: 12.5px; }
+/* under a cleared level's cores: whether it was new ground (all of them) or ground an earlier run covered (half) */
+.ibox .ipay em { display: block; font: 600 13px var(--sans); font-style: normal; margin-top: 3px; letter-spacing: .02em; } .ibox .ipay em.deeper { color: #ffd76a; } .ibox .ipay em.half { color: var(--dim); font-weight: 400; }
+.card .stats .upstat { color: var(--hot); font-weight: 600; }      /* what its upgrade ranks come to, with its other numbers */
+/* the Prestige button is the way on: large, and the row it shares stays one row (the fight pips give way) */
+#btn-prestige { padding: 10px 18px; font: 700 17px var(--sans); } #btn-prestige .ci { width: 13px; height: 13px; }
+.fhead { flex-wrap: nowrap; } .fhead .fside { flex: none; white-space: nowrap; } .fhead #pips { flex: 1 1 0; }
+@media (max-width: 1320px) { #btn-prestige { padding: 8px 12px; font-size: 15px; } }      /* a narrow window: a little smaller, so the fight pips are still pips */
+/* skills that have just become ones you can find: their rows, together, in one glowing border */
+#bag .newrows { display: flex; flex-direction: column; gap: 5px; flex: none; margin: -3px -4px; padding: 3px 4px; border-radius: 5px; }
+/* the cursor's card is laid out as a weapon's is: picture, name, power large and gold with dps at the right, its numbers, its sockets, its upgrade */
+#cursor .card { padding: 12px 13px; grid-template-columns: 76px minmax(0, 1fr); gap: 6px 13px; } #cursor .card .pic { width: 76px; height: 76px; } #cursor .card .pic img { width: 70px; height: 70px; }
+#cursor .card .who { row-gap: 2px; } #cursor .card .who > b { font-size: 19px; } #cursor .card .who .rank { font-size: 15px; }
+#cursor .card .who .dps { display: flex; align-items: baseline; gap: 9px; font-size: 14.5px; } #cursor .card .who .dps .pw { color: var(--text); } #cursor .card .who .dps .pw b { font-size: 21px; color: var(--gold, #ffcf5a); }
+#cursor .card .who .dps .real { margin-left: auto; font-size: 13px; } #cursor .card .who .dps .real b { font-size: 14.5px; }
+#cursor .card .stats { font-size: 14px; white-space: normal; }
+/* Upgrade is the thing gold is for: a large button, on the cursor and on every weapon */
+#line .card.post .uprow, #line .card.empty .uprow, #cursor .card .uprow { min-height: 42px; gap: 12px; margin-top: 5px; }
+#line .card.post .upbar, #cursor .card .upbar { height: 10px; border-radius: 5px; } #line .card.post .upn, #cursor .card .upn { font-size: 14.5px; }
+#line .card.post .uprank, #cursor .card .uprank { padding: 9px 18px; font: 700 16px var(--sans); }
+#cursor { padding-bottom: 9px; }
+.sock.newglow { border-radius: 50%; }      /* a socket the tree has just given: the glow goes round it */
+#tree .node.wait { pointer-events: none; }      /* not yet come up out of the dark or reached by the ripple: nothing to point at */
+/* the cursor's skills, as a weapon's are shown: a badge for each effect, and its stats listed under them */
+#cursor .card .statlist { font-size: 13.5px; line-height: 1.55; grid-template-columns: repeat(auto-fit, minmax(168px, 1fr)); } #cursor .card .chips { gap: 6px; } #cursor .card .chip { font-size: 14px; padding: 3px 12px; border-radius: 12px; }
+#modal .telesec { margin-top: 26px; padding-top: 16px; border-top: 1px solid var(--line); } #modal .telesec p { margin: 0 0 8px; } #modal .telesec .teleopt { margin-top: 0; }      /* the play-data part of the first box, set apart from how to play */
+#modal .notes ul + ul { margin-top: 12px; }      /* a gap left between two groups of bullets in one note */

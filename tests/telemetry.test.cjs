@@ -41,7 +41,7 @@ test('seen and left on: a session_start goes at once; switched off: nothing, and
 
 test('a run: what was forged, equipped, scrapped, rerolled, upgraded and crafted is counted, and sent when the run ends', () => {
   const r = load(HOST), { T, G, D } = r, S = G.S; T.init(); T.setEnabled(true); T.fail = true;
-  for (const id of ['F1', 'F2', 'UPG', 'URR', 'UBY', 'UMT']) S.tree[id] = 1; for (const nd of D.TREE) if (/^c[A-Z]/.test(nd.eff)) S.tree[nd.id] = 1;
+  for (const id of ['F1', 'F2', 'UPG', 'URR', 'UMT']) S.tree[id] = 1; for (const nd of D.TREE) if (/^c[A-Z]/.test(nd.eff)) S.tree[nd.id] = 1;
   S.posts = [{ unit: null }, { unit: null }]; S.crafter = 1; S.gold = 1e12; G.recompute();
   assert.ok(G.make()); r.pump(); assert.ok(G.benchReroll('type')); r.pump(); assert.ok(G.benchReroll('socks')); r.pump(); assert.ok(G.benchReroll('socks')); r.pump();
   assert.ok(G.equip()); r.pump(); assert.ok(G.make()); r.pump(); assert.ok(G.equip()); r.pump(); assert.ok(G.upgrade(0)); r.pump(); assert.ok(G.sell(1)); r.pump();
@@ -61,16 +61,16 @@ test('a run: what was forged, equipped, scrapped, rerolled, upgraded and crafted
 test('the tree: what a visit bought and handed back goes with the run that follows, and a change of mind is not counted', () => {
   const r = load(HOST), { T, G } = r, S = G.S; T.init(); T.setEnabled(true); T.fail = true;
   S.maxLevel = 12; S.run.earn = 60; assert.ok(G.prestige()); r.pump(); const ended = r.queue().pop().run;
-  for (const id of ['F1', 'F2', 'UPG', 'UBY']) { assert.ok(G.allocate(id), id); r.pump(); }
-  assert.ok(G.unallocate('UBY')); r.pump(); assert.ok(G.allocate('URR')); r.pump(); assert.ok(G.unallocate('URR')); r.pump(); assert.ok(G.allocate('UBY')); r.pump();
+  for (const id of ['CL0', 'F1', 'F2', 'UPG', 'UAD']) { assert.ok(G.allocate(id), id); r.pump(); }
+  assert.ok(G.unallocate('UAD')); r.pump(); assert.ok(G.allocate('URR')); r.pump(); assert.ok(G.unallocate('URR')); r.pump(); assert.ok(G.allocate('UAD')); r.pump();
   assert.ok(G.beginRun()); r.pump();
   let e = r.last('run_start'); assert.equal(r.queue().pop().type, 'progress', 'and where the run begins goes with it'); assert.notEqual(e.run, ended, 'a new run, a new id'); assert.equal(e.data.n, 2);
-  assert.equal(e.data.nodes.slice().sort().join(), 'F1,F2,UBY,UPG'); assert.equal(e.data.bought.slice().sort().join(), 'F1,F2,UBY,UPG'); assert.equal(e.data.dropped.join(), '', 'bought and handed back in one visit: neither');
+  assert.equal(e.data.nodes.slice().sort().join(), 'CL0,F1,F2,UAD,UPG'); assert.equal(e.data.bought.slice().sort().join(), 'CL0,F1,F2,UAD,UPG'); assert.equal(e.data.dropped.join(), '', 'bought and handed back in one visit: neither');
   assert.equal(e.data.cores, G.cores()); const second = e.run;
   // the next visit hands one back that an earlier one bought
   S.maxLevel = 5; assert.ok(G.prestige()); r.pump(); assert.equal(r.queue().pop().run, second, 'the run that ended is the one that started');
-  assert.ok(G.unallocate('UBY')); r.pump(); assert.ok(G.allocate('UMT')); r.pump(); assert.ok(G.beginRun()); r.pump();
-  e = r.last('run_start'); assert.equal(e.data.n, 3); assert.equal(e.data.bought.join(), 'UMT'); assert.equal(e.data.dropped.join(), 'UBY'); assert.equal(e.data.nodes.slice().sort().join(), 'F1,F2,UMT,UPG');
+  assert.ok(G.unallocate('UAD')); r.pump(); assert.ok(G.allocate('UMT')); r.pump(); assert.ok(G.beginRun()); r.pump();
+  e = r.last('run_start'); assert.equal(e.data.n, 3); assert.equal(e.data.bought.join(), 'UMT'); assert.equal(e.data.dropped.join(), 'UAD'); assert.equal(e.data.nodes.slice().sort().join(), 'CL0,F1,F2,UMT,UPG');
 });
 
 test('the queue: sent together, kept if the post fails, and handed to the browser when the page goes away', () => {

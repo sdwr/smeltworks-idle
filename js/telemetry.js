@@ -18,7 +18,7 @@
      run_start      { n, deepest, cores, nodes: [ids held], bought: [ids], dropped: [ids], playtime }
                     sent when a run begins after the prestige tree: what the tree holds, and what that visit changed
      run_end        { n, level, secs, kills, fails, cores, first, weapons, ups, skills, deepest, playtime,
-                      counts: { forged, equipped, scrapped, reroll_type, reroll_sockets, upgrade, upgrade_ranks,
+                      counts: { forged, equipped, scrapped, reroll_type, reroll_sockets, upgrade, upgrade_ranks, cursor_up, cursor_ranks,
                                 craft_strip, craft_recast, craft_add, craft_third, craft_morph, market, salvage, drops, tailwind } }
                     sent on prestige: n is the run's number, level the deepest it reached, secs its game time
      progress       { n, from, to, secs, levels: [[level, secs], ...], fails: { level: count } }
@@ -143,7 +143,8 @@ T.onGame = function (ev) {
     case 'sell': count('scrapped'); break;
     case 'bench': if (ev.kind === 'type') count('reroll_type'); else if (ev.kind === 'socks') count('reroll_sockets'); break;
     case 'forge': count('craft_' + ev.kind); break;
-    case 'upgrade': count('upgrade'); count('upgrade_ranks', ev.gain || 1); break;
+    case 'upgrade': if (ev.post === -1) { count('cursor_up'); count('cursor_ranks', ev.gain || 1); break; }      // the cursor's own, bought with gold
+      count('upgrade'); count('upgrade_ranks', ev.gain || 1); break;
     case 'bought': count('market'); break;
     case 'tailwind': count('tailwind'); break;      // a fight waved through
     case 'salvage': count('salvage'); break;

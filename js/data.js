@@ -34,7 +34,7 @@ const U = SW.util = {
 };
 
 const D = SW.data = {};
-D.VERSION = '0.100.6';
+D.VERSION = '0.115.0';
 D.SAVE_KEY = 'smeltworks-idle-v1';
 /* Play data (js/telemetry.js): where it is posted, and the only addresses of the game it is ever sent from */
 D.TELEMETRY = { url: 'https://smeltworks-idle-logging.sdwr.workers.dev/ingest', hosts: ['sdwr.github.io'] };
@@ -105,7 +105,7 @@ D.HIT_G = 0.0075; D.HIT_CAP = 2;    // attacks hit 0.75% harder per level, up to
 D.DEATH_SECS = 10;                  // after a fight is lost: the arena goes grey and counts down before the level starts again
 D.RUN_SECS = 3;                     // a run opens on an empty arena for this long: time to forge a weapon before the first fight
 D.REACH = { share: 0.42, secs: 0.6 };      // a fight's first blow: at least this share of a cooldown (or this many seconds, if that is less) is still to run when it opens, which is what a weapon takes to get there (arena.js TRIP)
-D.SPAWN = 0.7;                      // the pause between one fight and the next
+D.SPAWN = 1;                        // the pause between one fight and the next
 D.LEVEL_PAUSE = 2.2;                // and after the last fight of a level: an interlude that says what the level paid and what comes next
 
 /* Nothing is levelled up: not weapons, not the cursor, and there is no upgrade that adds damage. A weapon is its
@@ -113,10 +113,17 @@ D.LEVEL_PAUSE = 2.2;                // and after the last fight of a level: an i
    day it was made. Skills are the only thing that grows: deeper levels drop higher-level skills with bigger
    numbers and, more and more often, two secondary affixes. The prestige tree adds room for skills (posts and sockets), not
    damage. So the monsters' growth (D.HP_P, above) is set by what better skills can keep up with. */
-/* The cursor has no sockets: its blow is this and no more, though it shares in the line's auras and in whatever the
-   troops have done to the enemy. One blow, and how many a second: the cooldown between blows is 1 / aps (1s to
+/* The cursor's blow, before its Upgrade (D.CUP), the skills in its sockets and the tree's click nodes. It shares in the
+   line's auras and in whatever the troops have done to the enemy. One blow, and how many a second: the cooldown between blows is 1 / aps (1s to
    begin with), and an Attack Speed Aura cannot bring it under minCd. */
-D.CURSOR = { dmg: 6, aps: 1, carry: 1, minCd: 0.25, name: 'Cursor' };
+D.CURSOR = { dmg: 9, aps: 1 / 1.5, carry: 1, minCd: 0.25, name: 'Cursor' };      // a blow every second and a half: 6 damage a second, as it was at 6 a second
+/* The cursor's Upgrade, bought with gold once the tree's first node is held (G.upCursor): as a weapon's, a strike adds
+   one to three ranks (D.UP.gain) and each costs more than the last. A rank adds the cursor's own first blow again
+   (`dmg`%: +6 a rank), so a full twelve make it thirteen times what it was, about one bare dagger's worth for some
+   270 gold. That is enough, with a run's first gold, to take the cursor alone through the wall at level 3 and on to
+   level 5; beside a line of weapons with skills in them it is a small thing. It lasts the run. */
+D.CLICK_SELF = 0.75;      // the most Cursor damage in the cursor's own sockets can count for (a click of four times itself)
+D.CUP = { max: 12, dmg: 15, cost: 3, step: 1.5 };
 D.CRIT = 5; D.CRIT_MULT = 2;         // a critical hit is double: only Deathblow (and the dagger's notable) raises it
 
 D.DEPTH = 12;                       // levels for D.depth to rise by one
@@ -125,8 +132,8 @@ D.depth = lvl => 1 + (lvl - 1) / D.DEPTH;
    the life, and without a weapon level 3 cannot be beaten: its boss outlasts your Life. A weapon deals D.WALL.arm
    times what the table gives it (see D.WEAPONS): more than the wall's own measure, because the skills in it are
    plain ones, stats and no effect, until each colour's node is held, and the early bosses have to fall to those. */
-D.WALL = { from: 3, mult: 10, arm: 16 };
-D.hp = (lvl, fight) => D.PACE * D.HP0 * Math.pow(D.depth(lvl), D.HP_P) * (1 + D.HP_STEP * fight) * (lvl >= D.WALL.from ? D.WALL.mult : 1);
+D.WALL = { from: 3, mult: 2, arm: 1.6, from2: 4, mult2: 1.45, fade2: 6 };      // (from2, mult2: a second step, at level 4: one weapon and the cursor do not get past it. It is a step up and not a new height: it wears off over the next fade2 levels, so what lies deeper is as it was)
+D.hp = (lvl, fight) => D.PACE * D.HP0 * Math.pow(D.depth(lvl), D.HP_P) * (1 + D.HP_STEP * fight) * (lvl >= D.WALL.from ? D.WALL.mult : 1) * (lvl >= D.WALL.from2 ? 1 + (D.WALL.mult2 - 1) * Math.max(0, 1 - (lvl - D.WALL.from2) / D.WALL.fade2) : 1);
 D.gold = lvl => D.PAY * D.GOLD0 * (1 + (D.GOLD_TOP - 1) * (lvl - 1) / (lvl - 1 + D.GOLD_HALF));
 /* the first two levels are the cursor's alone, and their enemies pull their blows: level 1 hits for two fifths, level 2
    for seven tenths. From level 3 they hit in earnest. */
@@ -193,12 +200,12 @@ D.sockRoll = max => { const R = D.SOCK_ROLL, T = D.SOCK_STEP, cut = T.per * Math
 /* Upgrading (the tree's Upgrade node): a weapon on the line can be struck at for gold. Each strike adds one to three
    ranks (`gain`), up to `max`, and each rank is `dmg`% more damage. A strike costs `cost` kills' gold at your deepest
    level, times `step` for each rank the weapon already has. Scrapping the weapon gives half of it back. */
-D.UP = { max: 25, dmg: 3, cost: 16, step: 1.2, gain: [1, 3], back: 0.5 };
+D.UP = { max: 25, dmg: 10, cost: 16, step: 1.2, gain: [1, 3], back: 0.5 };
 /* what one Purse node starts a run with. It was the price of one bare weapon (16), which left a run that began deep
    with a Head start holding empty weapons and no way to fill them. Now it sets a weapon up: the weapon (16), a
    couple of rerolls for its sockets (26 each) and two or so skills from the Market (26 each). (It was 200 for a day: too much.) Without the Market it buys
    no skills and goes on weapons, rerolls and Upgrade: which is the player's puzzle. */
-D.PURSE = 125;
+D.PURSE = 75;
 D.MAKE = 5;                // making the weapon on the bench costs this many kills' gold at level 1 (D.PRICE_LVL): the same all run
 D.FORGE_SECS = 1.5;        // and takes this long at the anvil: three blows of the hammer
 D.REROLL_CUT = 30;         // the most the tree's Spare stock can take off a reroll, in percent: it stays dearer than a new weapon
@@ -217,12 +224,14 @@ D.REROLL_CUT = 30;         // the most the tree's Spare stock can take off a rer
                type does, how an affliction works, or a new way to craft a skill.
    The tree costs far more than a few runs earn, so which way you grow is a choice, and one you keep. */
 D.POSTS0 = 0; D.POSTS_MAX = 6;      // a new game has no weapon slot at all: each weapon node is one, six at the most
+D.CORE_FREE = 5;      // ...but the first few levels always pay in full: a new player's second and third runs are not the ones to cut
+D.CORE_OLD = 0.5;      // a level some earlier run cleared pays this much of its cores; a level never cleared before pays them all
 D.PRESTIGE_AT = 2;                  // the first run cannot be ended until it has reached this level (and earned its first core). After that any run can be, at any time
 /* Cores. A run earns them: each level pays D.CORE(level) the first time the run clears it, deeper levels more. They
    are banked when you prestige, and the tree's nodes are bought with them (a node can be handed back for its price while the tree is open, one at a time). So every
    run pays something, a wall can be ground past, and what gates the tree is what its nodes cost:
      the first weapon 1, the socket and Upgrade 2 each
-     the other unlocks: Rerolls 2, each colour of skill 4, the Market 5, Life 5
+     the other unlocks: Rerolls 2, each colour of skill 3, Life 5
      conv     a convenience, wherever it is: a Purse, a Head start or the Full kit
      bead     a small node: [base, more for each step it is from the middle]
      notable  a big node off a path: this many times a bead at the same distance
@@ -238,12 +247,15 @@ D.CORE = lvl => 1 + Math.floor(lvl / 2.5);
    goes with it]. Never a boss, and never off one (a level always opens with a fight), and a skipped fight sets nothing off itself. The steps are sized so that each node
    takes about the same share (8%) off the time an easy level takes: from about 14 seconds with none to about 7 with
    all eight, when one fight is fought and two are not. */
-D.TAIL = { secs: 1, odds: [[0.12, 0], [0.27, 0], [0.45, 0], [0.65, 0], [0.90, 0], [1, 0.20], [1, 0.55], [1, 1]] };
+D.TAIL = { secs: 1, per: 1, max: 4 };      // an easy win waves through one fight for each Tailwind held, four at the most
 D.SKIP_PAY = 0.5;                   // levels a Head start passed over pay this share of their cores, with the first level the run clears above them
 /* Every big node's icon on the tree: one path on a 24 by 24 grid, drawn as a line in the node's colour. A node has
    no word on it; its name is in the tooltip. (The later weapons and sockets share the first ones' icons.) */
 D.TREE_ICON = {
   post: 'M20.5 3.5l-1 5-8 8-3-3 8-8zM6 11l7 7M9.5 14.5l-5 5',
+  uClick: 'M6 3.5l12 7.5-5 1.6 3.2 6.2-2.6 1.3-3.2-6.2L6 17.5z',      // a pointer
+  cRad: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM9 7.5l7.5 4.7-3.1 1 2 3.9-1.7.8-2-3.9L9 16.2z',      // a pointer in its circle
+  cSock: 'M7 4h10l4.5 5.5L12 20.5 2.5 9.5zM2.5 9.5h19',
   sock: 'M7 4h10l4.5 5.5L12 20.5 2.5 9.5zM2.5 9.5h19M9.5 4L8 9.5l4 11 4-11L14.5 4',
   bench2: 'M7.5 4.5H21c0 4-3 7-7 7H7.5zM7.5 6H3c0 2.5 2 4 4.5 4M10 11.5v5M15 11.5v5M5.5 20.5c0-2.2 1.5-4 3.5-4h7c2 0 3.5 1.8 3.5 4z',
   uUp: 'M10.5 3.5l2 5.5 5.5 2-5.5 2-2 5.5-2-5.5-5.5-2 5.5-2zM18.5 15v5.5M15.75 17.75h5.5',
@@ -272,29 +284,33 @@ D.TREE_ICON = {
   cMorph: 'M4.5 12a7.5 7.5 0 0 1 13-5.2M19.5 3.5V7.2H15.8M19.5 12a7.5 7.5 0 0 1-13 5.2M4.5 20.5v-3.7h3.7',
 };
 D.TREE_ICON.post2 = D.TREE_ICON.post; D.TREE_ICON.sock2 = D.TREE_ICON.sock;
-D.PRICE = { F1: 1, F2: 2, UPG: 2, URR: 2, UMT: 4, UHX: 4, UAD: 4, UBY: 5, ULF: 5, conv: 3, bead: [2, 0.5], notable: 5, post2: [8, 1.255, 3], sock2: [14, 1.214, 5], tier: [5, 1.24, 2], tierBig: 2.2, bench2: 60 };
+D.PRICE = { CL0: 1, F1: 2, F2: 2, UPG: 2, CK1: 3, CK3: 6, CK6: 12, URR: 2, UMT: 3, UHX: 3, UAD: 3, K1: 8, SH: 5, ULF: 5, conv: 3, bead: [2, 0.5], notable: 5, post2: [8, 1.255, 3], sock2: [14, 1.214, 5], tier: [5, 1.24, 2], tierBig: 2.2, bench2: 60 };
 D.CULL = 15;                        // Cull (a notable): an enemy at this share of its life or less dies
 /* A new game has only the cursor: no post, and no socket, which means no skills either (none drop, none can be
    bought). The first two nodes of the tree give them, in this order: the post, then the socket. Nothing else can be
    taken until both are held. Clearing level 1 with the cursor is the first point, so the first prestige buys the
    weapon; clearing level 2, with that bare weapon's help, is the second, and the next prestige buys the socket. */
-D.TREE_GATE = ['F1'];            // the first node, in the middle: the first weapon. Everything hangs from it
-D.TREE_FIRST = ['UPG', 'F2'];    // and the two beside it, Upgrade and the socket, in either order: nothing else can be bought until both are held
+D.TREE_GATE = ['CL0'];           // the first node, in the middle: the cursor's Upgrade. Everything hangs from it
+D.TREE_FIRST = ['F1', 'F2'];     // and the two beside it, the first weapon and the socket, in either order: nothing else can be bought until both are held
 /* what a node can give. amt: [what a small node of it is worth, a big one]. A notable is worth 1: you hold it or not.
    text: what one node does. sum: what you hold of it altogether (small kinds only). */
-const HUB = '#ff9a4a', SOCK = '#b48cff', WPN = '#e8c060', HEX = '#6ab4ff', FORGE = '#7ad66a', MISC = '#9aa3b5', LIFE = '#e86a6a';
+const CLICK = '#ffb46a', HUB = '#ff9a4a', SOCK = '#b48cff', WPN = '#e8c060', HEX = '#6ab4ff', FORGE = '#7ad66a', MISC = '#9aa3b5', LIFE = '#e86a6a';
 D.TREE_EFF = {
   // hubs
   post:   { name: 'Weapon',         amt: [0, 1], col: HUB,  text: () => 'Unlocks weapons', sum: v => `${D.POSTS0 + v} weapon${D.POSTS0 + v === 1 ? '' : 's'}` },
-  sock:   { name: 'Forge socket', amt: [0, 1], col: SOCK, text: () => 'Unlocks sockets and skills', sum: v => `${D.CRAFT.sockets0 + v} socket${D.CRAFT.sockets0 + v === 1 ? '' : 's'}` },
+  sock:   { name: 'Skills', amt: [0, 1], col: SOCK, text: () => 'Unlock skills and sockets', sum: v => `${D.CRAFT.sockets0 + v} socket${D.CRAFT.sockets0 + v === 1 ? '' : 's'}` },
   post2:  { name: 'Weapon',         amt: [0, 1], col: HUB,  text: () => '+1 weapon' },
-  sock2:  { name: 'Forge socket', amt: [0, 1], col: SOCK, text: () => '+1 socket' },
+  sock2:  { name: 'Weapon socket', amt: [0, 1], col: SOCK, text: () => '+1 weapon socket' },
   uR:     { name: 'Might',          amt: [0, 1], col: '#ff5a48', text: () => 'Unlock Might skills' },
   uB:     { name: 'Hex',            amt: [0, 1], col: '#5aa8ff', text: () => 'Unlock Hex skills' },
   uG:     { name: 'Aid',            amt: [0, 1], col: '#6fdc6a', text: () => 'Unlock Aid skills' },
   uUp:    { name: 'Upgrade',        amt: [0, 1], col: HUB,  text: () => 'Upgrade weapons with gold' },
+  uClick: { name: 'Cursor upgrade', amt: [0, 1], col: CLICK, text: () => 'Upgrade the cursor with gold' },
+  cSock:  { name: 'Cursor socket',  amt: [1, 1], col: CLICK, text: () => '+1 cursor socket', sum: v => `${1 + v} cursor sockets` },
+  cDmg:   { name: 'Heavy hand',     amt: [40, 40], col: CLICK, text: v => `+${v}% cursor damage`, sum: v => `+${v}% cursor damage` },
+  cSpd:   { name: 'Quick hand',     amt: [20, 0], col: CLICK, text: v => `+${v}% cursor speed`, sum: v => `+${v}% cursor speed` },
+  cRad:   { name: 'Broad stroke',   amt: [40, 40], col: CLICK, text: v => `+${v}% wider cursor circle`, sum: v => `+${v}% wider cursor circle` },
   uReroll: { name: 'Rerolls',       amt: [0, 1], col: FORGE, text: () => 'Reroll the weapon on the bench' },
-  uBuy:   { name: 'Market',         amt: [0, 1], col: FORGE, text: () => 'Buy skills with gold' },
   bench2: { name: 'Second bench',   amt: [0, 1], col: SOCK, text: () => 'Set a weapon aside and work on another' },
   // weapons: the small nodes, and the notable they lead to
   swd:  { name: 'Sword drill',   amt: [25, 0],  col: WPN, text: v => `Swords attack ${v}% faster`, sum: v => `swords ${v}% faster` },
@@ -321,9 +337,9 @@ D.TREE_EFF = {
   reroll: { name: 'Spare stock',   amt: [8, 0],  col: FORGE, text: v => `Bench rerolls ${v}% cheaper`, sum: v => `bench rerolls ${v}% cheaper` },
   cheap:  { name: 'Haggling',      amt: [4, 0],  col: FORGE, text: v => `Buying skills ${v}% cheaper`, sum: v => `skills ${v}% cheaper` },
   drops:  { name: 'Keen eye',      amt: [12, 0],  col: FORGE, text: v => `+${v}% skill drops`, sum: v => `+${v}% skill drops` },
-  cAdd:   { name: 'Add affix',     amt: [0, 1],  col: FORGE, text: () => 'Craft: add an affix (up to two)' },
-  cThird: { name: 'Third line',    amt: [0, 1],  col: FORGE, text: () => 'Craft: add a third affix' },
-  cMorph: { name: 'Transmuting',   amt: [0, 1],  col: FORGE, text: () => 'Craft: change it into another skill' },
+  cAdd:   { name: 'Add skill affix', amt: [0, 1], col: FORGE, text: () => 'Add or remove affixes from skills' },
+  cThird: { name: 'Third line',    amt: [0, 1],  col: FORGE, text: () => 'Add a third affix to skills' },
+  cMorph: { name: 'Transmuting',   amt: [0, 1],  col: FORGE, text: () => 'Reroll skills into other skills' },
   // the run
   tier:   { name: 'Deep veins',    amt: [1, 2],  col: '#ffd98a', text: v => `Skills roll higher tiers${v > 1 ? ', twice over' : ''}`, sum: v => { const o = D.tierOdds(v), top = o.reduce((m, x, i) => x > 0 ? i : m, 0); return `T${top + 1} skills ${Math.round(o[top] * 100)}%, T1 ${Math.round(o[0] * 100)}%`; } },
   dmg:    { name: 'Whetstone',     amt: [5, 0],  col: WPN,  text: v => `+${v}% weapon damage`, sum: v => `+${v}% weapon damage` },
@@ -333,7 +349,7 @@ D.TREE_EFF = {
   purse:  { name: 'Purse',         amt: [1, 0],  col: MISC, text: v => `Start each run with +${v * D.PURSE} gold`, sum: v => `+${v * D.PURSE} gold to start` },
   kitAll: { name: 'Full kit',      amt: [1, 0],  col: MISC, text: () => 'Start each run with one of each skill', sum: () => 'one of each skill to start' },
   kit:    { name: 'Provisions',    amt: [1, 0],  col: MISC, text: v => `Start each run with ${v} skill${v === 1 ? '' : 's'}`, sum: v => `${v} starting skill${v === 1 ? '' : 's'}` },
-  tail:   { name: 'Tailwind',      amt: [1, 0],  col: MISC, text: () => 'Skip some easy battles', more: 'Skip more easy battles', sum: v => { const o = D.TAIL.odds[Math.min(v, D.TAIL.odds.length) - 1]; return o[0] < 1 ? `${Math.round(o[0] * 100)}% to skip the battle after an easy one` : o[1] >= 1 ? 'skips two battles after an easy one' : `skips the battle after an easy one, ${Math.round(o[1] * 100)}% a second`; } },
+  tail:   { name: 'Tailwind',      amt: [1, 0],  col: MISC, text: () => 'Skip a battle after an easy one', more: 'Skip one more battle after an easy one', full: `No more to skip: ${D.TAIL.max} is the most`, sum: v => { const k = Math.min(D.TAIL.max, v * D.TAIL.per); return `skips ${k} battle${k > 1 ? 's' : ''} after an easy one`; } },
 };
 /* the nodes: { id, x, y, eff, big, links: [the nodes it hangs from] }. 'start' is the middle, always held.
    Beside the start are the first two nodes: a troop post to the west and the first socket to the east. West from the post,
@@ -368,23 +384,34 @@ D.TREE = [];
      the two first nodes either side of the start with what they unlock above and below them, Life over the
      start and Hex under it. */
   // the first node is the middle one: the first weapon. Two lead out of it: Upgrade to the west, the first socket (and skills with it) to the east
-  N('F1', 0, 0, 'post', 'start', 1); N('UPG', -60, 0, 'uUp', 'F1', 1); N('F2', 60, 0, 'sock', 'F1', 1);
-  // and two things that have to be unlocked, one step off each: rerolling the bench, and buying skills
-  leaf('URR', 'UPG', 0, -60, 'uReroll'); leaf('UBY', 'F2', 0, -60, 'uBuy');
-  // over the middle, between Rerolls and the Market: plain weapon damage, the first step north on the way to Life
-  N('N0', 0, -60, 'dmg', ['UPG', 'F2']);
+  // (It was the first weapon in the middle once, with Upgrade to the west. Now the middle is the cursor's own upgrade:
+  // the first thing bought makes the one thing you already have stronger. The first weapon is west of it, the first
+  // socket east, which is the cursor's first socket too, and weapon Upgrade is over the middle.)
+  N('CL0', 0, 0, 'uClick', 'start', 1); N('F1', -60, 0, 'post', 'CL0', 1); N('F2', 60, 0, 'sock', 'CL0', 1);
+  // the block round the middle is in three columns. West, the weapon's: Upgrade over it and Might under it. East,
+  // the socket's, with Aid under it. Hex is under the cursor, and the way north to Life goes up from it. The corner
+  // over the socket is the cursor's own: Broad stroke, which hangs from the cursor's node, and two Cursor sockets run straight out from it.
+  leaf('UPG', 'F1', 0, -60, 'uUp'); N('CK1', 60, -60, 'cRad', 'CL0', 1);
+  // and over the cursor, between Upgrade and Heavy hand: Rerolls, the first step north on the way to Life. (A Whetstone
+  // stood there. The Market was a node too: it comes with the socket now.)
+  N('URR', 0, -60, 'uReroll', 'CL0', 1);
   // the three colours of skill: until its node is held a colour's skills are plain ones. Might hangs off the post,
   // Aid off the socket, and Hex is the first step south, on the way to Burn and Brittle
-  leaf('UMT', 'UPG', 0, 60, 'uR'); leaf('UAD', 'F2', 0, 60, 'uG'); N('UHX', 0, 60, 'uB', ['UPG', 'F2'], 1);
+  leaf('UMT', 'F1', 0, 60, 'uR'); leaf('UAD', 'F2', 0, 60, 'uG'); N('UHX', 0, 60, 'uB', 'CL0', 1);
   // starting gold, close to the middle and cheap: a Purse over Rerolls and one under Might (there are four more out on the bridges)
-  N('PU1', -60, -112, 'purse', 'URR'); N('PU2', -60, 112, 'purse', 'UMT');
+  N('PU1', -60, -112, 'purse', 'UPG'); N('PU2', -60, 112, 'purse', 'UMT');
   // and one Head start beyond each (a run begins five levels in): three cores, and there from the first. Taken before
   // there is the tree to stand five levels in it is a trap, and the player's to find out; the other six are out on the bridges
   N('HS1', -60, -152, 'tail', 'PU1'); N('HS2', -60, 152, 'tail', 'PU2');
   // and on the other side, under Aid: a run begins with one of every kind of skill there is to drop
   N('KT1', 60, 112, 'kitAll', 'UAD');
+  /* the cursor's own branch, for those who like to fight by hand: out of the corner over the Market, to the north-east,
+     where there was nothing. Harder blows, faster blows, a wider circle, and two more sockets for the cursor (its first
+     comes with the Skills node). A socket on the cursor is not only the cursor's: an aura in it reaches the whole line. */
+  N('CK3', 98, -98, 'cSock', 'CK1');      // (small ones, plain circles: nothing lies beyond them)
+  N('CK6', 128, -128, 'cSock', 'CK3');
   // west: the other five weapons, by way of the six types; the spine running back in from the tip carries two Battle lines
-  way('w', 'UPG', [], [-200, 0], rep('swd', 1), 'P1', 'post2');                       leaf('WSW', 'w1', 0, -54, 'swdN');
+  way('w', 'F1', [], [-200, 0], rep('swd', 1), 'P1', 'post2');                       leaf('WSW', 'w1', 0, -54, 'swdN');
   way('wu', 'P1', [], [-370, -225], ['ham', 'ham', 'ham', 'tier'], 'P2', 'post2');                   leaf('WHM', 'wu2', 43, -30, 'hamN');
   way('wd', 'P1', [], [-370, 225], ['axe', 'axe', 'axe', 'tier'], 'P3', 'post2');                    leaf('WAX', 'wd2', 43, 30, 'axeN');
   way('wa', 'P2', [], [-570, -75], ['dag', 'dag', 'dag', 'dag', 'tier', 'dag'], 'P4', 'post2');                    leaf('WDG', 'wa3', -28, -44, 'dagN');
@@ -393,18 +420,18 @@ D.TREE = [];
   N('wj', -490, 0, 'stf', [j1, j2]); N('wk', -445, 0, 'stf', 'wj'); N('P6', -395, 0, 'might', 'wk', 1);   leaf('WST', 'wk', 0, -54, 'stfN');
   N('wl', -347, 0, 'tier', 'P6'); N('P7', -299, 0, 'might', 'wl', 1);          // (where a seventh and an eighth weapon used to be: a line is six at the most)
   // east: the five sockets and the second bench, by way of the crafter
-  way('e', 'F2', [], [200, 0], ['tier', 'cheap', 'craft'], 'K1', 'sock2');
+  way('e', 'F2', [], [200, 0], ['tier'], 'K1', 'sock2');      // (a Haggling and a Steady hand stood on this way too: one step now, as the way west to the second weapon is)
   at('e1').x += 5;      // room for the first socket's hexagon
   way('eu', 'K1', [], [370, -225], ['reroll', 'drops', 'craft', 'tier', 'drops', 'craft', 'reroll'], 'K2', 'sock2');
-  leaf('CAD', 'eu3', -43, -30, 'cAdd');
   way('ed', 'K1', [], [370, 225], ['cheap', 'drops', 'craft', 'tier', 'drops', 'craft', 'cheap'], 'K3', 'sock2');
+  leaf('CAD', 'eu3', -43, -30, 'cAdd');
   leaf('CTH', 'ed3', -43, 30, 'cThird'); leaf('CMO', 'ed6', -43, 30, 'cMorph');
   const j3 = way('ep', 'K2', [[570, -75]], [490, 0], ['gold', 'tier', 'gold', 'craft']), j4 = way('eq', 'K3', [[570, 75]], [490, 0], ['gold', 'tier', 'gold', 'craft']);
   N('ej', 490, 0, 'drops', [j3, j4]); N('ek', 445, 0, 'tier', 'ej'); N('K4', 395, 0, 'sock2', 'ek', 1);    leaf('BN2', 'ej', 52, 0, 'bench2');
   N('el', 347, 0, 'tier', 'K4'); N('K5', 299, 0, 'sock2', 'el', 1);          // the sixth socket, the last and deepest
   // north: weapon damage up to Life (a hundred of it, which doubles what you begin with), then on to Stun one way and
   // Shockwave the other; Chill's notable hangs over Life
-  way('n', 'N0', [], [0, -170], rep('dmg', 2), 'ULF', 'life');                       leaf('ND', 'ULF', 0, -68, 'chillN');
+  N('n1', 0, -98, 'dmg', 'URR'); N('n2', 0, -134, 'dmg', 'n1'); N('ULF', 0, -170, 'life', 'n2', 1);                       leaf('ND', 'ULF', 0, -68, 'chillN');
   way('nl', 'ULF', [], [-190, -322], ['dmg', 'dmg', 'dmg', 'tier'], 'NC', 'stunN');
   way('nr', 'ULF', [], [190, -322], ['dmg', 'dmg', 'dmg', 'tier'], 'NK', 'novaN');
   // south: weapon damage down from Hex to Cull, then on to Brittle one way and more Life the other; Burn's notable hangs under Cull
@@ -425,7 +452,7 @@ D.TREE = [];
   const bridge2 = (pre, from, to, side) => {
     const a = at(from), b = at(to), dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy), px = -dy / len * side, py = dx / len * side, on = k => [a.x + dx * k / 3, a.y + dy * k / 3];
     N(pre + '1', ...on(1), 'purse', from); N(pre + '4', ...on(2), 'purse', pre + '1'); at(to).links.push(pre + '4');
-    N(pre + '2', on(1)[0] + px * 44, on(1)[1] + py * 44, 'tail', pre + '1'); N(pre + '3', on(1)[0] + px * 84, on(1)[1] + py * 84, 'tail', pre + '2');
+    // (a branch of two Tailwinds hung off the first Purse of each, to the inside: four Tailwinds are all that count now, and those four are the ones nearer the middle)
   };
   bridge2('xb', 'NK', 'K2', 1); bridge2('xd', 'SL', 'K3', -1);
   // the deep-run notables, one off each bridge: damage for the whole line in the west, two tiers on every skill in the east
@@ -439,14 +466,21 @@ D.TREE_START = D.TREE.filter(n => n.links.includes('start')).map(n => n.id);
    shows: everything that can be reached without passing one of the four POINTS (the second weapon, the second
    socket, Life and Cull: the first big thing in each direction), and the four themselves. Holding any one of the
    four opens the whole tree. Nothing here is a rule of the game: what is not shown cannot be clicked, and that is all. */
-D.TREE_SQUARE = ['F1', 'UPG', 'F2', 'URR', 'N0', 'UBY', 'UMT', 'UHX', 'UAD'];
-D.TREE_SQUARE_NEED = 5;      // of the nine: the first three and any two more. (All nine was a toll: 27 cores, little of it power, before the second weapon could even be seen.)
+D.TREE_SQUARE = ['CL0', 'F1', 'F2', 'UPG', 'URR', 'CK1', 'UMT', 'UHX', 'UAD'];
+D.TREE_WITH = { UPG: 'F1' };      // the exception: weapon Upgrade can be bought as soon as the weapon is, without waiting for Skills (a weapon's power is in its upgrades)
+D.TREE_DIAMOND = ['tier'];      // small nodes drawn as diamonds
+D.TREE_KEYS = ['CL0', 'UPG', 'URR', 'CK1', 'UMT', 'UHX', 'UAD'];      // drawn as squares: the block's unlocks (the weapon and the socket are hexagons, as every one of theirs is)
+D.TREE_SQUARE_NEED = 6;      // of the nine: the first three and any three more. (All nine was a toll: 27 cores, little of it power, before the second weapon could even be seen.)
 D.TREE_POINTS = ['P1', 'K1', 'ULF', 'SH'];
+D.TREE_POINTS_NEED = 2;      // how many of those four open the whole tree
+D.TREE_LATE = ['n1', 'n2', 'ULF', 's1', 's2', 'SH'];      // the ways north to Life and south to Cull are not part of the inner tree: they come up with the whole of it, in its ripple
 D.TREE_INNER = (() => { const seen = new Set(D.TREE_START), q = [...D.TREE_START];
   while (q.length) { const id = q.shift(); if (D.TREE_POINTS.includes(id)) continue; for (const x of D.NODE[id].near) if (x !== 'start' && !seen.has(x)) { seen.add(x); q.push(x); } }
-  return [...seen]; })();
-// dist: how many steps a node is from the middle one
-(function () { const todo = D.TREE_START.slice(); for (const id of todo) D.NODE[id].dist = 0; while (todo.length) { const n = D.NODE[todo.shift()]; for (const y of n.near) if (y !== 'start' && D.NODE[y].dist == null) { D.NODE[y].dist = n.dist + 1; todo.push(y); } } })();
+  return [...seen].filter(id => !D.TREE_LATE.includes(id)); })();
+// dist: how many steps a node is from the middle one (a price goes by it. The ways north and south start at the cursor's
+// node now, a step nearer than they did: D.TREE_FAR counts that step back in, so that nothing out there changed its price)
+D.TREE_FAR = { n1: 1, s1: 1, K1: 2 };
+(function () { const todo = D.TREE_START.slice(); for (const id of todo) D.NODE[id].dist = 0; while (todo.length) { const n = D.NODE[todo.shift()]; for (const y of n.near) if (y !== 'start' && D.NODE[y].dist == null) { D.NODE[y].dist = n.dist + 1 + (D.TREE_FAR[y] || 0); todo.push(y); } } })();
 D.isKey = n => /^u[A-Z]/.test(n.eff);        // the unlocks round the middle
 
 /* ------------------------------------------------------------ skills
@@ -465,6 +499,7 @@ D.tier = lvl => Math.min(D.TIER_MAX, 1 + Math.floor((lvl - 1) / D.TIER_LVLS));
 D.TIER_VAL = [1, 1.4, 1.7, 1.9, 2];
 D.TIER_ODDS = { base: -1.2, step: 0.13 };      // tier t's weight is e^(k(t-1)), with k = base + step for each tier point held on the tree
 D.TIER_FROM = [0, 0, 3, 6, 10]; D.TIER_RAMP = 6;
+D.TIER_DEPTH = 6;      // and depth tilts them too: every six levels a skill comes from count as a tier point for it
 D.tierOdds = pts => { const k = D.TIER_ODDS.base + D.TIER_ODDS.step * pts, w = D.TIER_VAL.map((_, i) => Math.exp(k * i) * (D.TIER_FROM[i] ? Math.max(0, Math.min(1, (pts - D.TIER_FROM[i] + 1) / D.TIER_RAMP)) : 1)), sum = w.reduce((a, b) => a + b, 0); return w.map(x => x / sum); };
 D.CHILL = 30;         // Chilled: attacks this much slower
 D.HEX_DUR = 4;           // how long a Chill lasts: a hit always applies it, so this is short
@@ -521,14 +556,14 @@ D.SKILLS.forEach(s => s.short = SHORT[s.id]);
    every tier adds a fifth of that again. who: 'own' counts for whoever holds the skill, 'all' for everyone. */
 const AF = (id, name, per, text, who, w) => ({ id, name, per, text, who, w });
 D.AFFIXES = [
-  AF('dmg',     'Damage',           25, '+{v}% damage', 'own', 10),
+  AF('dmg',     'Damage',           40, '+{v}% damage', 'own', 10),
   AF('aspd',    'Attack speed',     12, '+{v}% attack speed', 'own', 8),
   AF('crit',    'Critical chance',   6, '+{v}% critical chance', 'own', 7),
   AF('boss',    'Boss damage',      35, '+{v}% damage to bosses', 'own', 6),
   AF('gold',    'Gold',             12, '+{v}% gold', 'all', 5),
   AF('time',    'Life',             20, '+{v} Life', 'all', 4),
   // two that most weapons can do without: one is only for the hand on the mouse, the other only for the fights with many in them
-  AF('click',   'Cursor damage',    40, '+{v}% cursor damage', 'all', 6),
+  AF('click',   'Cursor damage',    8, 'Add {v}% damage to click damage', 'all', 6),
   AF('leech',   'Life on kill',      1, '+{v} Life on kill', 'all', 6),
 ];
 D.AFFIX = {}; D.AFFIXES.forEach(a => D.AFFIX[a.id] = a);
@@ -592,7 +627,7 @@ D.roomMean = act => { const E = D.ENC, ms = act.mobs, hp = l => l.reduce((s, m) 
 D.roomEven = act => act.even || (act.even = D.roomMean(D.ACTS[0]) / D.roomMean(act));
 D.act = lvl => D.ACTS[Math.floor((lvl - 1) / D.ACT_LEVELS) % D.ACTS.length];
 D.lap = lvl => Math.floor((lvl - 1) / (D.ACT_LEVELS * D.ACTS.length));          // how many times round the five acts
-D.FIRST_GOLD = { first: 2, again: 0.5 };      // a fight pays this many times its gold the first time it is won in a run, and this many whenever it is won again: gold comes from getting deeper, not from the same ground over and over
+D.FIRST_GOLD = { first: 1.3, again: 0.5 };      // a fight pays this many times its gold the first time it is won in a run, and this many whenever it is won again: gold comes from getting deeper, not from the same ground over and over
 D.SLAM = { every: 4, mult: 1.6 };       // an act boss's every fourth swing
 
 D.OFFLINE = { share: 0.5, cap: 8 * 3600, min: 60 };      // away from the game: half your recent gold rate, for up to eight hours

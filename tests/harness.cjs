@@ -21,7 +21,9 @@ const VAL = [1, 1.4, 1.7, 1.9, 2];
 const worth = g => 2 * TM(g.lvl) + 10 * g.aff.reduce((n, a) => n + (AFF_W[a.k] || 0.3) * VAL[a.t - 1], 0);
 function botTurn(SW, o) {
   const G = SW.game, S = G.S; TM = SW.data.tier;
-  if (!S.posts.length) return;                    // a new game: the cursor is all there is
+  // the cursor's own Upgrade: everything it has, while there is no weapon on the line to spend on instead
+  if (!S.posts.some(P => P.unit) && !(S.bench && S.bench.made)) for (let n = 0; n < 6 && G.canUpCursor(); n++) G.upCursor();
+  if (!S.posts.length) return;                    // no weapon post yet: the cursor is all there is
   // a head start: once there are weapons on the line, go straight to the deepest level open (a lost fight brings it back)
   if (S.maxLevel > 1 && S.level === 1 && !o.jumped && S.posts.filter(P => P.unit).length >= Math.min(3, S.posts.length)) { o.jumped = true; G.goto(S.maxLevel); }
   // gold: skills, while there is room to look at them
@@ -83,7 +85,7 @@ function allocTree(SW) {
   };
   const costOf = p => { let c = 0; for (const id of p) { c += G.nodeCost(id); S.tree[id] = 1; } for (const id of p) delete S.tree[id]; return c; };      // prices move as nodes are held
   const buy = p => { for (const id of p) if (!G.allocate(id)) throw new Error('could not buy ' + id); };
-  for (const id of ['F1', 'F2', 'UPG', 'UBY']) if (!G.has(id)) { const p = pathTo(id); if (!p || costOf(p) > G.cores()) return; buy(p); }
+  for (const id of ['CL0', 'F1', 'F2', 'UPG']) if (!G.has(id)) { const p = pathTo(id); if (!p || costOf(p) > G.cores()) return; buy(p); }
   const POW = { post2: 'p', sock2: 's', tier: 't', dmg: 'd', might: 'd' }, EXTRA = { UPG: 1.35, ULF: 1.4, UAD: 1.25, UHX: 1.25, UMT: 1.15, SH: 1.18, SL: 1.1, ND: 1.05, PU1: 1.03, PU2: 1.03, KT1: 1.03 };
   // (what a tier point is worth: the average affix, on a skill of the tier the odds give, from 1 to that tier)
   const mean = pts => D.tierOdds(pts).reduce((s, p, T) => s + p * D.TIER_VAL.slice(0, T + 1).reduce((a, b) => a + b, 0) / (T + 1), 0);
@@ -118,7 +120,8 @@ function play(SW, secs, o) {
     if (G.S.maxLevel !== lastMax) { lastMax = G.S.maxLevel; lastNew = t; }
     // before it holds the first two nodes (a post, then a socket) a run is over as soon as there is a point for the
     // next of them. Otherwise, when it stalls
-    if (!o.noPrestige && G.canPrestige() && (t - lastNew > stall || (!G.has('F2') && G.cores() + G.runCores() >= (G.has('F1') ? 2 : 1)))) {
+    // (before the first three nodes are held a run is the cursor's, or one weapon's with no skills: it is over when it has stood still a minute)
+    if (!o.noPrestige && G.canPrestige() && t - lastNew > (G.firstHeld() ? stall : Math.min(stall, o.early || 60))) {
       const reached = G.S.maxLevel, earned = G.runCores(); G.prestige(); allocTree(SW); G.beginRun();
       if (o.runs) o.runs.push({ at: t, secs: t - began, reached, earned, cores: G.cores(), nodes: G.spent(), tier: G.tierPoints(), posts: G.S.posts.length, socks: G.craftSockets() });
       began = t; lastNew = t; lastMax = G.S.maxLevel; o.jumped = false; nextBot = t;
