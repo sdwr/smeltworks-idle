@@ -564,6 +564,7 @@ UI.playDataNotice = function () {
   const T = SW.telemetry; if (!T.hosted() || T.asked() || !$('modal').classList.contains('hidden')) return;
   modal(`<h3>One new thing</h3><p>This test build can send anonymous notes on how your runs go, to help balance the game.</p>${playDataLine()}
     <div class="btns"><button class="big" data-act="close">Continue</button></div>`);
+  UI.waiting = true;      // (nothing fights behind a window the game opens with: see UI.welcome)
 };
 /* (quiet: the page is only being put back, as on a reload while the tree was open. Nothing was prestiged just now, so it is simply there: no dark, no fade, no ripple) */
 function showPrestige(on, quiet) { if (!on && G.S.alloc) return; if (on && !UI.pres) { UI.presOpen = quiet ? null : performance.now() / 1000; UI.presAt = quiet ? null : UI.presOpen + RIPPLE.hold; UI.ripMid = false; UI.ripFrom = null; } UI.pres = !!on; $('prestige').classList.toggle('hidden', !on); if (on) renderCores(); hideTip(); }
@@ -589,12 +590,14 @@ UI.whatsNew = function (all) {
   const b = notesBlock(all); if (!b) return false;
   modal(`<h3>What's new</h3>${b}${SW.telemetry.asked() ? '' : playDataLine()}
     <div class="btns"><button class="big" data-act="close">Continue</button></div>`);
+  UI.waiting = true;
   return true;
 };
 UI.offline = function (o) {
   const h = Math.floor(o.secs / 3600), m = Math.floor(o.secs % 3600 / 60);
   modal(`<h3>While you were away</h3><p><b>${h ? h + 'h ' : ''}${m}m</b> · <b class="hot">${fmt(o.gold)} gold</b></p>${(b => b ? `<h3 class="sub">What's new</h3>${b}` : '')(notesBlock())}${SW.telemetry.asked() ? '' : playDataLine()}
     <div class="btns"><button class="big" data-act="close">Continue</button></div>`);
+  UI.waiting = true;
 };
 function settings() {
   modal(`<h3>Settings <span class="ver">v${D.VERSION}</span></h3>
