@@ -14,7 +14,7 @@ G.unseenNotes = () => notes().filter(n => n.id > (G.S.notes || 0)).sort((a, b) =
 G.seeNotes = () => { G.S.notes = Math.max(G.S.notes || 0, G.noteTop()); };
 G.fresh = function () {
   const S = {
-    v: 1, gate: 2, gold: 0, crafter: 0, runs: 0, hsOut: 1, tailIn: 1, col3: 1, k1at8: 1, notes: G.noteTop(),
+    v: 1, gate: 2, gold: 0, crafter: 0, runs: 0, hsOut: 1, tailIn: 1, col3: 1, k1at8: 1, gates2: 1, east4: 1, tips: 1, tiersEW: 1, k45: 1, notes: G.noteTop(),
     best: 1,                 // the deepest level ever reached
     bank: 0,                 // cores in hand: what runs have earned, less what the tree has cost
     tree: {},                // the nodes of the prestige tree that are held
@@ -60,7 +60,9 @@ G.rollAffix = function (gem, not) {
 };
 G.rollGem = function (lvl, boss, skill, depth) {      // lvl: its tier's level; depth: the level it came from (how often it has two affixes)
   const S = G.S, gem = { id: S.uid++, sk: skill || G.dropOf(U.pick(D.SKILLS)), lvl, aff: [] };
-  const n = U.rng() < D.twoChance(depth || lvl, boss) ? 2 : 1;      // one, or two: more often with level
+  // one; or two, more often with level, if the tree's Second affix is held; or three, deep and seldom, if its Third affix is
+  let n = G.treeVal('cAdd') > 0 && U.rng() < D.twoChance(depth || lvl, boss) ? 2 : 1;
+  if (n === 2 && G.treeVal('cThird') > 0 && U.rng() < D.threeChance(depth || lvl, boss)) n = 3;
   while (gem.aff.length < n) gem.aff.push(G.rollAffix(gem));
   return gem;
 };
@@ -208,7 +210,7 @@ D.CRAFTS = [
   { id: 'recast', name: 'Reroll affixes', price: 'recast', mult: 3,   can: g => g.aff.length > 0, why: 'No affix', text: () => 'New affixes' },
   { id: 'add',    name: 'Add an affix', price: 'recast', mult: 4,   node: 'cAdd', can: g => g.aff.length < 2, why: 'Has two already', text: () => 'One more affix' },
   { id: 'third',  name: 'Add a third affix', price: 'recast', mult: 12,  node: 'cThird', can: g => g.aff.length === 2, why: 'Needs two affixes', text: () => 'A third affix' },
-  { id: 'morph',  name: 'Transmute', price: 'recast', mult: 2,   node: 'cMorph', can: () => true, text: () => 'Becomes another skill' },
+  { id: 'morph',  name: 'Transmute', price: 'recast', mult: 2,   can: () => true, text: () => 'Becomes another skill' },
 ];
 D.CRAFT_BY = {}; D.CRAFTS.forEach(c => D.CRAFT_BY[c.id] = c);
 G.craftUnlocked = id => { const c = D.CRAFT_BY[id]; return !!c && (!c.node || G.treeVal(c.node) > 0); };
@@ -400,8 +402,8 @@ G.swapPosts = function (a, b) {
 /* A run earns cores (D.CORE, for each level it clears); prestige banks them; nodes are bought with them (D.PRICE) */
 G.cores = () => G.S.bank || 0;
 G.runCores = () => (G.S.run && G.S.run.earn) || 0;
-/* what clearing a level is worth to this run: all of D.CORE if no run before this one cleared it, D.CORE_OLD of it if one did */
-G.coreFor = lvl => D.CORE(lvl) * (lvl > D.CORE_FREE && lvl < ((G.S.run && G.S.run.deep) || 1) ? D.CORE_OLD : 1);      // (the first D.CORE_FREE levels always pay in full)
+/* what clearing a level is worth to this run: D.CORE, with its first-clear bonus, if no run before this one cleared it; D.CORE_AGAIN of that if one did */
+G.coreFor = lvl => D.CORE(lvl) * (lvl > D.CORE_FREE && lvl < ((G.S.run && G.S.run.deep) || 1) ? D.CORE_AGAIN : 1);      // (the first D.CORE_FREE levels always pay with the bonus)
 G.spent = () => Object.keys(G.S.tree).length;      // how many nodes are held
 G.has = id => id === 'start' || !!G.S.tree[id];
 /* what the held nodes of one kind add up to */
@@ -543,7 +545,7 @@ G.recompute = function () {
   const X = G.X = {
     cursor: finish(hc, glob), units: hu.map(h => h ? finish(h, glob) : null), glob,
     lifeMax: D.LIFE + G.treeVal('life') + Math.min(D.LIFE_CAP - D.LIFE, glob.time),      // what you begin with, the tree's Life nodes, and Life affixes up to their cap
-    goldMult: (1 + glob.gold / 100) * (1 + G.treeVal('gold') / 100), dropMult: (1 + glob.find / 100) * (1 + G.treeVal('drops') / 100),
+    goldMult: (1 + glob.gold / 100) * (1 + (G.treeVal('gold') + G.treeVal('goldN')) / 100), dropMult: (1 + glob.find / 100) * (1 + G.treeVal('drops') / 100),
     leech: Math.min(D.LEECH_CAP, glob.leech),      // Life on kill, the whole line's together, up to its cap
     chill: D.CHILL, ward: glob.ward,      // the Defense Aura: every enemy's blow takes this much less Life
     // the tree's afflictions, read once here: the tree cannot change during a run
@@ -876,7 +878,7 @@ function won() {
        levels cleared, not by where the run began: a run that starts too deep and is driven back still earns for
        what it does clear. */
     /* ...and a level pays in full only the first time it is ever cleared. One cleared in an earlier run (below
-       S.run.deep, the deepest level there was when this run began, and past the first D.CORE_FREE) pays D.CORE_OLD of that: cores come from getting
+       S.run.deep, the deepest level there was when this run began, and past the first D.CORE_FREE) pays D.CORE_AGAIN of that: cores come from getting
        deeper. Parts of a core are kept (S.run.part) and paid when they come to a whole one. */
     const paidNow = S.level > (S.run.paid || 0);      // (the first time this run has cleared it)
     if (S.level > (S.run.paid || 0)) {
@@ -890,7 +892,7 @@ function won() {
     }
     const done = S.level;
     if (S.auto) S.level = Math.min(S.level + 1, S.maxLevel);
-    F.wait = D.LEVEL_PAUSE; emit('leveldone', { level: done, pay, next: S.level, secs: D.LEVEL_PAUSE, deeper: paidNow && done >= (S.run.deep || 1), half: paidNow && G.coreFor(done) < D.CORE(done) });      // the interlude
+    F.wait = D.LEVEL_PAUSE; emit('leveldone', { level: done, pay, next: S.level, secs: D.LEVEL_PAUSE, deeper: paidNow && done >= (S.run.deep || 1), again: paidNow && G.coreFor(done) < D.CORE(done) });      // the interlude
     return;
   }
   F.wait = D.SPAWN;
@@ -1029,6 +1031,35 @@ G.patch = function (S) {
   // the Market comes with the socket: a save that bought its node has the 5 cores back. And Rerolls stands where the
   // first Whetstone north of the middle stood: one held is Rerolls now, or 3 cores if Rerolls was held already
   if (S.tree.UBY) { S.bank = (S.bank || 0) + 5; delete S.tree.UBY; }
+  /* the two affix gates (v0.116). Add skill affix and Third line were leaves off the arms at 33 each, and Transmuting one at 40.
+     Second affix stands after the second socket now, at 12: who held the leaf holds the gate and has the difference back, and
+     who held the socket is given the gate, so that nothing beyond it is cut off and nobody stops finding two affixes.
+     Transmuting comes with Skills: its 40 is returned. (Third affix and the second bench: see `tips` below.) */
+  if (!S.gates2) {
+    if (S.tree.CAD) S.bank = (S.bank || 0) + 21; else if (S.tree.K1) S.tree.CAD = 1;
+    if (S.tree.CMO) { S.bank = (S.bank || 0) + 40; delete S.tree.CMO; }
+    S.gates2 = 1;
+  }
+  // (v0.116.1) the arms east are four steps where they were seven, the sockets at their ends cost 25 where they cost 66, and
+  // the Deep veins on the two spines 8 where they cost 194 and 298: what was paid for any of it comes back
+  // Third affix is the notable at the east tip, where the second bench was, and the second bench is at the west tip: one
+  // held without the node it now hangs from (the Third line leaf was halfway up an arm) is paid back, so nothing is left cut off
+  if (!S.tips) {
+    if (S.tree.CTH && !S.tree.ej) { S.bank = (S.bank || 0) + 33; delete S.tree.CTH; }
+    if (S.tree.BN2 && !S.tree.wj) { S.bank = (S.bank || 0) + 60; delete S.tree.BN2; }
+    S.tips = 1;
+  }
+  if (!S.east4) {
+    const back = { eu5: 7, eu6: 8, eu7: 8, ed5: 7, ed6: 8, ed7: 8, ek: 194 }, less = { K2: 41, K3: 41, el: 290, wl: 290 };      // (ek: the Deep veins before the fifth socket, gone)
+    for (const id in back) if (S.tree[id]) { S.bank = (S.bank || 0) + back[id]; delete S.tree[id]; }
+    for (const id in less) if (S.tree[id]) S.bank = (S.bank || 0) + less[id];
+    S.east4 = 1;
+  }
+  if (S.tree.ek) { S.bank = (S.bank || 0) + 8; delete S.tree.ek; }
+  // the east's Deep veins cost what the west's do (15 and 53, where they cost 23 and 82): the difference comes back
+  // the fifth and sixth sockets cost 120 and 160, where they cost 257 and 378
+  if (!S.k45) { if (S.tree.K4) S.bank = (S.bank || 0) + 137; if (S.tree.K5) S.bank = (S.bank || 0) + 218; S.k45 = 1; }
+  if (!S.tiersEW) { for (const [id, d] of [['eu4', 8], ['ed4', 8], ['ep2', 29], ['eq2', 29]]) if (S.tree[id]) S.bank = (S.bank || 0) + d; S.tiersEW = 1; }      // (and one bought at 8, in the days between)
   if (S.tree.N0) { if (S.tree.URR) S.bank = (S.bank || 0) + 3; else { S.tree.URR = 1; S.bank = (S.bank || 0) + 1; } delete S.tree.N0; }
   // four Tailwinds are all that count, and the four out on the eastern bridges are gone: each one held is 3 cores back
   for (const id of ['xb2', 'xb3', 'xd2', 'xd3']) if (S.tree[id]) { S.bank = (S.bank || 0) + 3; delete S.tree[id]; }

@@ -193,9 +193,14 @@ button.x { padding: 5px 7px; color: var(--dim); flex: none; }
 #pips i.done { background: var(--ember); border-color: #ffb46a; }
 #pips i.now { border-color: var(--hot); box-shadow: 0 0 8px var(--hot); }
 #pips i.boss { max-width: 18px; border-radius: 3px; transform: rotate(45deg); margin-left: 5px; }
+/* a fight won: its circle swells white-hot and settles to ember, and the next one grows in with a ring going out from it
+   (`scale`, not `transform`, so the boss's diamond keeps its turn) */
+#pips i.just { animation: pipdone .55s cubic-bezier(.2, .8, .3, 1) both; }
+#pips i.arrive { animation: piparrive .7s ease-out both; }
+@keyframes pipdone { 0% { scale: 1; background: #0f0d14; border-color: var(--hot); } 30% { scale: 1.7; background: #fff6dc; border-color: #fff; box-shadow: 0 0 14px 4px var(--hot); } 100% { scale: 1; } }
+@keyframes piparrive { 0% { scale: .4; border-color: var(--line2); box-shadow: 0 0 0 0 rgba(255, 210, 122, .9); } 45% { scale: 1.35; } 70% { box-shadow: 0 0 0 9px rgba(255, 210, 122, 0); } 100% { scale: 1; } }
 .lifebar { position: relative; height: 22px; background: #0f0d14; border: 1px solid var(--line2); border-radius: 3px; overflow: hidden; }
-#life-fill { position: absolute; inset: 0 auto 0 0; width: 100%; background: linear-gradient(#7fd66a, #2f8a3a); transform-origin: left; transition: transform .12s; }
-#life-fill.low { background: linear-gradient(#ff8a6a, #d93a2a); }
+#life-fill { position: absolute; inset: 0 auto 0 0; width: 100%; background: linear-gradient(#7fd66a, #2f8a3a); transform-origin: left; }      /* (its slide down is eased in ui.js) */
 #life-barrier { position: absolute; top: 0; height: 6px; left: 0; width: 0; background: repeating-linear-gradient(45deg, rgba(120,190,255,.85) 0 6px, rgba(90,150,235,.85) 6px 12px); opacity: .95; }
 #life-txt { position: absolute; inset: 0; display: grid; place-items: center; font: 700 13px var(--sans); color: #fff; text-shadow: 0 1px 2px #000, 0 0 4px #000; font-variant-numeric: tabular-nums; }
 .lifebar.hurt { animation: lifehurt .35s; }
@@ -209,6 +214,8 @@ button.x { padding: 5px 7px; color: var(--dim); flex: none; }
 .st-vuln { color: #ff9ad0; } .st-chill { color: #9be3ff; } .st-weak { color: #c9a0ff; } .st-stun { color: #ffe07a; } .st-brit { color: #e0d2a8; } .st-burn { color: #ff8a3a; }
 .hpbar { position: absolute; left: 12px; right: 12px; top: 34px; height: 16px; background: rgba(8,7,11,.8); border: 1px solid var(--line2); border-radius: 3px; overflow: hidden; pointer-events: none; }
 #hp-fill { position: absolute; inset: 0; background: linear-gradient(#e0483a, #9a2018); transform-origin: left; }
+/* the chunk the enemy's bar has just lost, behind its fill: it holds a moment and closes up fast (ghost() in ui.js) */
+#hp-ghost { position: absolute; inset: 0; transform-origin: left; transform: scaleX(0); background: linear-gradient(#f39688, #c2594d); }      /* a shade lighter than the fill, no more */
 #hp-txt { position: absolute; inset: 0; display: grid; place-items: center; font: 700 11px var(--sans); color: #fff; text-shadow: 0 1px 2px #000; font-variant-numeric: tabular-nums; }
 #banner { position: absolute; left: 0; right: 0; top: 38%; text-align: center; pointer-events: none; }
 /* the interlude after a level: it covers the arena for the pause, then the next level begins */
@@ -501,7 +508,7 @@ button.craftbtn { display: block; width: 100%; margin: 0 0 8px; padding: 8px 12p
 #detail .forge { gap: 8px; margin-top: 12px; } #detail .forge button { font-size: 14.5px; padding: 9px 10px; } #detail .forge button small { font-size: 13px; margin-top: 2px; }
 #detail .hint { font-size: 14px; margin-top: 12px; } #detail .hint kbd { font-size: 12.5px; }
 /* under a cleared level's cores: whether it was new ground (all of them) or ground an earlier run covered (half) */
-.ibox .ipay em { display: block; font: 600 13px var(--sans); font-style: normal; margin-top: 3px; letter-spacing: .02em; } .ibox .ipay em.deeper { color: #ffd76a; } .ibox .ipay em.half { color: var(--dim); font-weight: 400; }
+.ibox .ipay em { display: block; font: 600 13px var(--sans); font-style: normal; margin-top: 3px; letter-spacing: .02em; } .ibox .ipay em.deeper { color: #ffd76a; }
 .card .stats .upstat { color: var(--hot); font-weight: 600; }      /* what its upgrade ranks come to, with its other numbers */
 /* the Prestige button is the way on: large, and the row it shares stays one row (the fight pips give way) */
 #btn-prestige { padding: 10px 18px; font: 700 17px var(--sans); } #btn-prestige .ci { width: 13px; height: 13px; }

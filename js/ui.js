@@ -308,7 +308,7 @@ function treeSVG() {
     } else UI.presAt = now;
   }
   UI.treeStage = stage;
-  const shownAt = (stage, id) => id === 'start' || stage === TREE_WHOLE || D.TREE_GATE.includes(id) || (stage >= 1 && D.TREE_FIRST.includes(id)) || (stage >= 1 && D.TREE_WITH[id] && G.has(D.TREE_WITH[id])) || (stage >= 2 && D.TREE_SQUARE.includes(id)) || (stage >= 3 && D.TREE_INNER.includes(id));
+  const shownAt = (stage, id) => id === 'start' || stage === TREE_WHOLE || D.TREE_GATE.includes(id) || (stage >= 1 && D.TREE_FIRST.includes(id) && !(D.TREE_WITH[id] && !G.has(D.TREE_WITH[id]))) || (stage >= 1 && D.TREE_WITH[id] && G.has(D.TREE_WITH[id])) || (stage >= 2 && D.TREE_SQUARE.includes(id)) || (stage >= 3 && D.TREE_INNER.includes(id));
   const shown = id => shownAt(stage, id);
   // (R: the timings in force. A reveal, when more of the tree is first shown, is slower than the page's opening: it is an event, and it was over too soon)
   const R = UI.ripFrom != null ? REVEAL : RIPPLE;
@@ -386,7 +386,17 @@ UI.render = function () {
 UI.redraw = () => { UI.dirty = true; };
 
 /* ------------------------------------------------------------------ what moves every frame */
-let lastCosts = '', patchT = 0, pipKey = '', statKey = '';
+let lastCosts = '', patchT = 0, pipKey = '', statKey = '', pipWas = null, barT = 0;
+/* the chunk a bar has just lost: a paler bar behind the fill that stays where the fill was for a moment, then closes up
+   to it. `o` is that bar's own state ({ g: where the pale bar stands, hold: how long it still waits }). A bar that
+   grows (a new encounter, Life refilled) takes its pale bar with it at once. */
+const GHOST = { hold: 0.28, min: 2.4, pull: 16 };      // seconds held; then closing at `min` of the bar a second, faster the wider the gap
+function ghost(o, el, frac, dt) {
+  if (o.g == null || frac >= o.g) { o.g = frac; o.hold = 0; }
+  else { if (o.hold === 0) o.hold = GHOST.hold; if (o.hold > 0) { o.hold -= dt; if (o.hold <= 0) o.hold = -1; } else { o.g = Math.max(frac, o.g - dt * Math.max(GHOST.min, (o.g - frac) * GHOST.pull)); if (o.g <= frac) o.hold = 0; } }
+  if (el) el.style.transform = `scaleX(${o.g})`;
+}
+const hpGhost = {}; let lifeShown = null;
 const setText = (el, s) => { if (el.textContent !== s) el.textContent = s; };
 /* one blow at the anvil: the sound, the weapon jolts, and sparks fly off it */
 function tink(at) {            // at: the weapon struck, if it is not the one on the bench (an upgrade on the line)
@@ -412,8 +422,10 @@ function patch(force) {
     UI.goldWas = gold;
     if (UI.goldGain && now - (UI.goldT || 0) > 400) { goldGlint(UI.goldGain); UI.goldGain = 0; UI.goldT = now; } }
   // life, and the cursor's cooldown
-  const frac = U.clamp(F.life / X.lifeMax, 0, 1), lf = $('life-fill');
-  lf.style.transform = `scaleX(${frac})`; lf.classList.toggle('low', frac < 0.3);
+  const frac = U.clamp(F.life / X.lifeMax, 0, 1), lf = $('life-fill'), nowT = performance.now(), bdt = Math.min(0.1, (nowT - (barT || nowT)) / 1000); barT = nowT;
+  // Life goes down as a slide, not in steps: the bar closes on what is left, faster the further it has to go. (Going up, it is there at once.)
+  lifeShown = lifeShown == null || frac >= lifeShown ? frac : Math.max(frac, lifeShown - bdt * Math.max(0.25, (lifeShown - frac) * 7));
+  lf.style.transform = `scaleX(${lifeShown})`;      // (green all the way down: red is the enemy's bar)
   setText($('life-txt'), 'Life ' + Math.max(0, Math.ceil(F.life)) + ' / ' + Math.round(X.lifeMax));
   const cd = $('cd-fill'); if (cd) { const r = G.ready(); cd.style.transform = `scaleX(${r})`; cd.classList.toggle('ready', r >= 1); }
   { const fb = document.querySelector('#shop [data-forge]'); if (fb && S.forge) fb.style.transform = `scaleX(${U.clamp(1 - S.forge.left / D.FORGE_SECS, 0, 1)})`; }
@@ -426,6 +438,7 @@ function patch(force) {
     for (const e of F.es) if (!e.dead) { hp += e.hp; left++; if (!lead || e.max > lead.max) lead = e; }
     const en = $('e-name'); setText(en, enc.name + (enc.n > 1 ? '  ·  ' + left + ' left' : '')); en.classList.toggle('boss', !!enc.boss);
     $('hp-fill').style.transform = `scaleX(${U.clamp(hp / enc.max, 0, 1)})`;
+    ghost(hpGhost, $('hp-ghost'), U.clamp(hp / enc.max, 0, 1), bdt);
     setText($('hp-txt'), fmt(Math.max(0, Math.ceil(hp))) + ' / ' + fmt(enc.max));
     // afflictions are each enemy's own (the pips over its head); the chips name those on the biggest one standing
     const st = [], e = lead;
@@ -442,7 +455,12 @@ function patch(force) {
     pipKey = pk;
     const lap = D.lap(S.level);
     setText($('lv-n'), 'Level ' + S.level); setText($('lv-act'), D.act(S.level).name + (lap ? ' · lap ' + (lap + 1) : '') + (S.level < S.maxLevel ? ' · cleared' : ''));
-    let h = ''; for (let i = 0; i < D.FIGHTS; i++) h += `<i class="${i < S.fight ? 'done' : i === S.fight ? 'now' : ''}${G.isBoss(i) ? ' boss' : ''}"></i>`;
+    // a fight won within the level: the circles just filled pop, one after another if several were skipped, and the new one arrives
+    const from = pipWas && pipWas.level === S.level && S.fight > pipWas.fight && !force ? pipWas.fight : -1; pipWas = { level: S.level, fight: S.fight };
+    let h = ''; for (let i = 0; i < D.FIGHTS; i++) {
+      const just = from >= 0 && i >= from && i < S.fight, arrive = from >= 0 && i === S.fight;
+      h += `<i class="${i < S.fight ? 'done' : i === S.fight ? 'now' : ''}${G.isBoss(i) ? ' boss' : ''}${just ? ' just' : arrive ? ' arrive' : ''}"${just || arrive ? ` style="animation-delay:${(i - from) * 70}ms"` : ''}></i>`;
+    }
     $('pips').innerHTML = h;
     $('lv-prev').disabled = S.level <= 1; $('lv-next').disabled = S.level >= S.maxLevel;
   }
@@ -490,7 +508,7 @@ UI.toast = toast;
 function interlude(ev) {
   const el = $('interlude'), S = G.S, on = ev.next !== ev.level;
   el.innerHTML = `<div class="ibox" style="--secs:${ev.secs}s"><small>Level ${ev.level}</small><b>Cleared</b>
-    ${ev.pay || ev.half ? `<span class="ipay">${ci('core')}+${fmt(ev.pay || 0)}<i>${fmt(G.runCores())} this run</i>${ev.deeper && S.runs ? '<em class="deeper">New depth: full cores</em>' : ev.half ? '<em class="half">Cleared before: half cores</em>' : ''}</span>` : ''}
+    ${ev.pay || ev.again ? `<span class="ipay">${ci('core')}+${fmt(ev.pay || 0)}<i>${fmt(G.runCores())} this run</i>${ev.deeper && S.runs ? `<em class="deeper">First clear bonus: +${D.coreBonus()}% cores</em>` : ''}</span>` : ''}
     <span class="inext">${on ? `Level ${ev.next} · ${esc(D.act(ev.next).name)}` : 'Again'}</span><div class="ibar"><i></i></div></div>`;
   el.classList.remove('hidden', 'out'); clearTimeout(interlude.t);
   interlude.t = setTimeout(() => { el.classList.add('out'); interlude.t = setTimeout(() => el.classList.add('hidden'), 400); }, ev.secs * 1000);      // the bar fills, then it fades

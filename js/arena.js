@@ -305,16 +305,22 @@ function drawEnemy(e, enc, many, lit, dt) {
   const bw = Math.max(18, w * 0.7), by = y - h * 0.5 - 7;
   if (many) {
     ctx.fillStyle = 'rgba(8,7,11,.85)'; ctx.fillRect(x - bw / 2 - 1, by - 1, bw + 2, 5);
-    ctx.fillStyle = e.boss ? '#ffb03a' : '#e0483a'; ctx.fillRect(x - bw / 2, by, bw * U.clamp(e.hp / e.max, 0, 1), 3);
+    // the chunk just lost shows paler behind the fill for a moment, then closes up (as the big bars do: see ghost() in ui.js)
+    const fr = U.clamp(e.hp / e.max, 0, 1);
+    if (a.g == null || fr >= a.g) { a.g = fr; a.gh = 0; }
+    else if (a.gh === 0) a.gh = t + 0.28; else if (t >= a.gh) { a.g = Math.max(fr, a.g - fdt * Math.max(2.4, (a.g - fr) * 16)); if (a.g <= fr) a.gh = 0; }
+    if (a.g > fr) { ctx.fillStyle = e.boss ? '#ffd27a' : '#f08d80'; ctx.fillRect(x - bw / 2, by, bw * a.g, 3); }
+    ctx.fillStyle = e.boss ? '#ffb03a' : '#e0483a'; ctx.fillRect(x - bw / 2, by, bw * fr, 3);
   }
   const on = AFFL.filter(f => f[2](e)); if (!on.length) return;
   const bs = G.F.es.length > 7 ? 10 : 14, gap = 3, tw = on.length * bs + (on.length - 1) * gap, top = by - bs - 5 - (e.stun > 0 ? 6 : 0);
   on.forEach((f, i) => badge(f[0], f[1], Math.round(x - tw / 2 + i * (bs + gap)), Math.round(top), bs, e));
 }
 
+let fdt = 0;      // this frame's seconds, for what eases as it is drawn
 A.draw = function (dt) {
   if (!ctx) return;
-  t += dt;
+  t += dt; fdt = dt;
   const S = G.S, F = G.F, X = G.X, enc = F.enc, act = D.act(S.level);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   const key = S.level + ':' + W + ':' + H;

@@ -41,5 +41,10 @@ SW.notes = [
     'reduced gold and core rewards',
     'skill tiers now improve with level depth as well as skill tier nodes',
   ] },
+  { id: 3, title: 'Version 0.116', lines: [
+    'Reworked east side of prestige tree',
+    'Changed how multiple affixes drop on skills',
+    'Added animations for hp bars and level indicator',
+  ] },
 ];
 })();

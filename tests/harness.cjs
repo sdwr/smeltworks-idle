@@ -86,7 +86,7 @@ function allocTree(SW) {
   const costOf = p => { let c = 0; for (const id of p) { c += G.nodeCost(id); S.tree[id] = 1; } for (const id of p) delete S.tree[id]; return c; };      // prices move as nodes are held
   const buy = p => { for (const id of p) if (!G.allocate(id)) throw new Error('could not buy ' + id); };
   for (const id of ['CL0', 'F1', 'F2', 'UPG']) if (!G.has(id)) { const p = pathTo(id); if (!p || costOf(p) > G.cores()) return; buy(p); }
-  const POW = { post2: 'p', sock2: 's', tier: 't', dmg: 'd', might: 'd' }, EXTRA = { UPG: 1.35, ULF: 1.4, UAD: 1.25, UHX: 1.25, UMT: 1.15, SH: 1.18, SL: 1.1, ND: 1.05, PU1: 1.03, PU2: 1.03, KT1: 1.03 };
+  const POW = { post2: 'p', sock2: 's', tier: 't', dmg: 'd', might: 'd' }, EXTRA = { CAD: 1.2, UPG: 1.35, ULF: 1.4, UAD: 1.25, UHX: 1.25, UMT: 1.15, SH: 1.18, SL: 1.1, ND: 1.05, PU1: 1.03, PU2: 1.03, KT1: 1.03 };
   // (what a tier point is worth: the average affix, on a skill of the tier the odds give, from 1 to that tier)
   const mean = pts => D.tierOdds(pts).reduce((s, p, T) => s + p * D.TIER_VAL.slice(0, T + 1).reduce((a, b) => a + b, 0) / (T + 1), 0);
   const model = o => o.p * (1 + 0.6 * Math.max(1, o.s - 0.5) * mean(o.t)) * (1 + o.d / 100) * o.x;

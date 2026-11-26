@@ -78,7 +78,7 @@ It is a separate game from `../smeltworks` and shares nothing with it at run tim
   | Axe, sword, dagger | One target, and about a quarter more damage to it |
 
 - **The Forge**, at the top of the left-hand pane, over the skills, is an anvil and a bench (it is "the crafter" in what follows, and in the code). **Forge weapon** costs gold and puts a new
-  weapon on the bench: a random type, and a roll of sockets: every socket the tree has unlocked 45% of the time with two unlocked, 40% with three and 35% with four or more (up to six); otherwise one short, or 15% of the time two short, never fewer than one. Sockets it missed show as faint outlines. Set skills in its
+  weapon on the bench: a random type, and a roll of sockets: every socket the tree has unlocked 60% of the time with two unlocked, 55% with three and 50% with four or more (up to six); otherwise one short, or 10% of the time two short, never fewer than one. Sockets it missed show as faint outlines. Set skills in its
   sockets; they go in and out freely. With the tree's **Rerolls** node you can reroll its **type** alone or its
   **sockets** alone (their colours, never how many: a weapon that rolled short stays short), for gold, with the same second and a half at the anvil and the same three blows as a new weapon, and the same ring and shine when it is done. Either costs 1.6 times a new weapon (8 kills' gold against 5), since it keeps the half you liked; the whole weapon again is **New** (the same price as Make: a different weapon,
   and the skills in the old one back in your bag). **Equip** is free, needs an empty weapon slot (with none, the button is greyed out, and its tooltip and the toast on a click both say to scrap one weapon first), and is final: the
@@ -146,9 +146,9 @@ It is a separate game from `../smeltworks` and shares nothing with it at run tim
 
   A craft costs by how deep the run has been (as a new weapon and a bought skill do), not by the skill's tier, and so does what a salvaged skill pays.
 
-  A skill drops with **one or two** secondary affixes, never none, and the bright pips on its icon show how
-  many. From level 5 a skill has a growing chance of a second, and from level 29 they all have two. A boss's
-  skill is twice as likely to have it. A third only ever comes from crafting.
+  A skill drops with **one** secondary affix until the tree's **Second affix** is held (a gate straight after the second weapon socket, 12 cores), and with one or two after: the bright pips on its icon show how
+  many. With it a skill has a 15% chance of a second up to level 6 (24% at level 10, and 4% more each level after), and from level 29 they all have two. A boss's
+  skill is twice as likely to have it. A third needs the tree's **Third affix** (the notable at the east tip of the tree, 60 cores): with it a two-affix skill has a 2% chance of a third at level 1, 2% more each level, 40% at the most (from level 20), and a boss's twice that.
 - **The bag** is a box that scrolls inside itself, with a row for each skill that can come to you now (and any
   other you still hold) holding up to five of it, the
   ones with the most secondary affixes first (then the highest tier), across the whole width of the pane. When
@@ -160,9 +160,10 @@ It is a separate game from `../smeltworks` and shares nothing with it at run tim
 
   | Unlocked by | What it does |
   | --- | --- |
-  | Add affix | Add an affix to a skill with none or one |
-  | Third line | Add a third affix to a skill with two |
-  | Transmuting | Turn it into a different skill, keeping its tier and affixes |
+  | Second affix | Remove an affix; add an affix to a skill with none or one |
+  | Third affix | Add a third affix to a skill with two |
+
+  Transmute (turn it into a different skill, keeping its tier and affixes) comes with Skills, as Reroll affixes does.
 
   The primary affix is never rolled.
 - **Afflictions show on the enemy.** Chilled turns it frost-blue on a patch of ice, with snow drifting past;
@@ -207,8 +208,8 @@ It is a separate game from `../smeltworks` and shares nothing with it at run tim
 - **Prestige** is a tree, bought with **cores**. A level pays the first time a run clears it: 1 core for each of
   levels 1 and 2, 2 for 3 and 4, 3 for 5 to 7, and so on, two more for every five levels (level 50 pays 21, level 90 pays 37). So
   a run to level 10 earns 23, to 20 earns 87, to 50 earns 519, to 90 about 1,650, the first time each level is ever cleared.
-  **A level some earlier run cleared pays half** (levels 1 to 5 always pay in full): cores come from getting deeper, and the
-  box that closes a level says which it was ("New depth: full cores" or "Cleared before: half cores"). Prestige banks them. **Every node has a price** and can be bought only if it touches one you hold, and
+  **That is with the first-clear bonus: a level some earlier run cleared pays two thirds of it**, so a first clear is worth
+  half as much again (levels 1 to 5 always pay with the bonus). The box that closes a level says so when it applies ("First clear bonus: +50% cores"). Prestige banks them. **Every node has a price** and can be bought only if it touches one you hold, and
   **a node can be unspecced**: while the tree is open, click one you hold and its price returns to you (its tooltip reads "Unspec for ◆N"). Any node, whenever it was bought, one at a time, as long as everything else you hold still reaches the centre without it, so a branch comes apart from its tip inwards. There is no button that clears the whole tree.
 
   | Node | Price in cores |

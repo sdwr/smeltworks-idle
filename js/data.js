@@ -34,7 +34,7 @@ const U = SW.util = {
 };
 
 const D = SW.data = {};
-D.VERSION = '0.115.0';
+D.VERSION = '0.116.7';
 D.SAVE_KEY = 'smeltworks-idle-v1';
 /* Play data (js/telemetry.js): where it is posted, and the only addresses of the game it is ever sent from */
 D.TELEMETRY = { url: 'https://smeltworks-idle-logging.sdwr.workers.dev/ingest', hosts: ['sdwr.github.io'] };
@@ -192,9 +192,9 @@ D.PALS = ['rust', 'iron', 'steel', 'rune', 'star', 'void'];   // by socket count
 D.CRAFT = { sockets0: 0, max: 6, part: 1.6 };      // sockets0: what a weapon is made with before any socket node; part: what the type alone, or the sockets alone, costs to reroll, as a multiple of a new weapon: more, since it keeps the half you liked
 /* A made weapon does not always get every socket the tree has unlocked: the chance of all of them, of one short,
    and of two short (never fewer than one). Rerolling its sockets changes their colours, not how many: for more, make it again. */
-D.SOCK_ROLL = [0.45, 0.40, 0.15];
+D.SOCK_ROLL = [0.60, 0.30, 0.10];
 /* and the more sockets there are to get, the less often all of them: the chance of the full count falls by `per` for each socket
-   unlocked past `from`, as far as `to` (45% at two, 40% at three, 35% from four on). What it loses goes to one short. */
+   unlocked past `from`, as far as `to` (60% at two, 55% at three, 50% from four on). What it loses goes to one short. */
 D.SOCK_STEP = { per: 0.05, from: 2, to: 4 };
 D.sockRoll = max => { const R = D.SOCK_ROLL, T = D.SOCK_STEP, cut = T.per * Math.max(0, Math.min(max, T.to) - T.from); return [R[0] - cut, R[1] + cut, R[2]]; };
 /* Upgrading (the tree's Upgrade node): a weapon on the line can be struck at for gold. Each strike adds one to three
@@ -224,8 +224,11 @@ D.REROLL_CUT = 30;         // the most the tree's Spare stock can take off a rer
                type does, how an affliction works, or a new way to craft a skill.
    The tree costs far more than a few runs earn, so which way you grow is a choice, and one you keep. */
 D.POSTS0 = 0; D.POSTS_MAX = 6;      // a new game has no weapon slot at all: each weapon node is one, six at the most
-D.CORE_FREE = 5;      // ...but the first few levels always pay in full: a new player's second and third runs are not the ones to cut
-D.CORE_OLD = 0.5;      // a level some earlier run cleared pays this much of its cores; a level never cleared before pays them all
+/* The first-clear bonus. D.CORE is what a level pays the first time it is ever cleared. A level some earlier run cleared pays
+   D.CORE_AGAIN of that, so a first clear is worth half as much again as a clear of old ground (D.coreBonus, as the game words it). */
+D.CORE_AGAIN = 2 / 3;
+D.coreBonus = () => Math.round((1 / D.CORE_AGAIN - 1) * 100);      // the bonus as a percentage: 50
+D.CORE_FREE = 5;      // the first few levels always pay with the bonus: a new player's second and third runs are not the ones to hold back
 D.PRESTIGE_AT = 2;                  // the first run cannot be ended until it has reached this level (and earned its first core). After that any run can be, at any time
 /* Cores. A run earns them: each level pays D.CORE(level) the first time the run clears it, deeper levels more. They
    are banked when you prestige, and the tree's nodes are bought with them (a node can be handed back for its price while the tree is open, one at a time). So every
@@ -283,15 +286,18 @@ D.TREE_ICON = {
   cThird: 'M4 5.5h16M4 10.5h16M4 15.5h8M18 15v6M15 18h6',
   cMorph: 'M4.5 12a7.5 7.5 0 0 1 13-5.2M19.5 3.5V7.2H15.8M19.5 12a7.5 7.5 0 0 1-13 5.2M4.5 20.5v-3.7h3.7',
 };
+D.TREE_ICON.goldN = 'M12 4.5a7.5 7.5 0 1 0 0 15a7.5 7.5 0 1 0 0-15M12 7.8v8.4M14.4 9.6h-3.3a1.3 1.3 0 0 0 0 2.6h1.8a1.3 1.3 0 0 1 0 2.6H9.6';      // a coin
 D.TREE_ICON.post2 = D.TREE_ICON.post; D.TREE_ICON.sock2 = D.TREE_ICON.sock;
-D.PRICE = { CL0: 1, F1: 2, F2: 2, UPG: 2, CK1: 3, CK3: 6, CK6: 12, URR: 2, UMT: 3, UHX: 3, UAD: 3, K1: 8, SH: 5, ULF: 5, conv: 3, bead: [2, 0.5], notable: 5, post2: [8, 1.255, 3], sock2: [14, 1.214, 5], tier: [5, 1.24, 2], tierBig: 2.2, bench2: 60 };
+D.PRICE = { CL0: 1, F1: 2, F2: 2, UPG: 2, CK1: 3, CK3: 6, CK6: 12, URR: 2, UMT: 3, UHX: 3, UAD: 3, K1: 8, SH: 5, ULF: 5, CAD: 12, CTH: 60, K2: 25, K3: 25, GD1: 25, GD2: 25, K4: 120, K5: 160, el: 8, wl: 8, eu4: 15, ed4: 15, ep2: 53, eq2: 53,      /* (the east's Deep veins cost what the west's do: 15 on the inner arms, 53 on the outer) */
+  TR1: 117, TR2: 117,      /* (K2, K3: the third and fourth sockets, priced as the second and third weapons are. ek, el, wl: the Deep veins on the two spines) */
+  conv: 3, bead: [2, 0.5], notable: 5, post2: [8, 1.255, 3], sock2: [14, 1.214, 5], tier: [5, 1.24, 2], tierBig: 2.2, bench2: 60 };
 D.CULL = 15;                        // Cull (a notable): an enemy at this share of its life or less dies
 /* A new game has only the cursor: no post, and no socket, which means no skills either (none drop, none can be
    bought). The first two nodes of the tree give them, in this order: the post, then the socket. Nothing else can be
    taken until both are held. Clearing level 1 with the cursor is the first point, so the first prestige buys the
    weapon; clearing level 2, with that bare weapon's help, is the second, and the next prestige buys the socket. */
 D.TREE_GATE = ['CL0'];           // the first node, in the middle: the cursor's Upgrade. Everything hangs from it
-D.TREE_FIRST = ['F1', 'F2'];     // and the two beside it, the first weapon and the socket, in either order: nothing else can be bought until both are held
+D.TREE_FIRST = ['F1', 'F2', 'UPG'];     // and the two beside it, the first weapon and the socket, in either order, and weapon Upgrade over the weapon: nothing else can be bought, and the rest of the square is not shown, until all three are held
 /* what a node can give. amt: [what a small node of it is worth, a big one]. A notable is worth 1: you hold it or not.
    text: what one node does. sum: what you hold of it altogether (small kinds only). */
 const CLICK = '#ffb46a', HUB = '#ff9a4a', SOCK = '#b48cff', WPN = '#e8c060', HEX = '#6ab4ff', FORGE = '#7ad66a', MISC = '#9aa3b5', LIFE = '#e86a6a';
@@ -337,15 +343,15 @@ D.TREE_EFF = {
   reroll: { name: 'Spare stock',   amt: [8, 0],  col: FORGE, text: v => `Bench rerolls ${v}% cheaper`, sum: v => `bench rerolls ${v}% cheaper` },
   cheap:  { name: 'Haggling',      amt: [4, 0],  col: FORGE, text: v => `Buying skills ${v}% cheaper`, sum: v => `skills ${v}% cheaper` },
   drops:  { name: 'Keen eye',      amt: [12, 0],  col: FORGE, text: v => `+${v}% skill drops`, sum: v => `+${v}% skill drops` },
-  cAdd:   { name: 'Add skill affix', amt: [0, 1], col: FORGE, text: () => 'Add or remove affixes from skills' },
-  cThird: { name: 'Third line',    amt: [0, 1],  col: FORGE, text: () => 'Add a third affix to skills' },
-  cMorph: { name: 'Transmuting',   amt: [0, 1],  col: FORGE, text: () => 'Reroll skills into other skills' },
+  cAdd:   { name: 'Second affix', amt: [0, 1], col: FORGE, text: () => 'Skills can have a second affix' },
+  cThird: { name: 'Third affix',  amt: [0, 1], col: FORGE, text: () => 'Skills can have a third affix' },
   // the run
   tier:   { name: 'Deep veins',    amt: [1, 2],  col: '#ffd98a', text: v => `Skills roll higher tiers${v > 1 ? ', twice over' : ''}`, sum: v => { const o = D.tierOdds(v), top = o.reduce((m, x, i) => x > 0 ? i : m, 0); return `T${top + 1} skills ${Math.round(o[top] * 100)}%, T1 ${Math.round(o[0] * 100)}%`; } },
   dmg:    { name: 'Whetstone',     amt: [5, 0],  col: WPN,  text: v => `+${v}% weapon damage`, sum: v => `+${v}% weapon damage` },
   cull:   { name: 'Cull',          amt: [0, 1],  col: LIFE, text: () => `Enemies at ${D.CULL}% life or less die` },
   might:  { name: 'Battle line',   amt: [0, 15], col: MISC, text: v => `+${v}% damage for every weapon` },
   gold:   { name: 'Prospecting',   amt: [10, 0], col: FORGE, text: v => `+${v}% gold`, sum: v => `+${v}% gold` },
+  goldN:  { name: 'Mother lode',   amt: [0, 30], col: FORGE, text: v => `+${v}% gold from monsters` },
   purse:  { name: 'Purse',         amt: [1, 0],  col: MISC, text: v => `Start each run with +${v * D.PURSE} gold`, sum: v => `+${v * D.PURSE} gold to start` },
   kitAll: { name: 'Full kit',      amt: [1, 0],  col: MISC, text: () => 'Start each run with one of each skill', sum: () => 'one of each skill to start' },
   kit:    { name: 'Provisions',    amt: [1, 0],  col: MISC, text: v => `Start each run with ${v} skill${v === 1 ? '' : 's'}`, sum: v => `${v} starting skill${v === 1 ? '' : 's'}` },
@@ -417,18 +423,23 @@ D.TREE = [];
   way('wa', 'P2', [], [-570, -75], ['dag', 'dag', 'dag', 'dag', 'tier', 'dag'], 'P4', 'post2');                    leaf('WDG', 'wa3', -28, -44, 'dagN');
   way('wb', 'P3', [], [-570, 75], ['bow', 'bow', 'bow', 'bow', 'tier', 'bow'], 'P5', 'post2');                     leaf('WBW', 'wb3', -28, 44, 'bowN');
   const j1 = way('wp', 'P4', [], [-490, 0], rep('stf', 2)), j2 = way('wq', 'P5', [], [-490, 0], rep('stf', 2));
-  N('wj', -490, 0, 'stf', [j1, j2]); N('wk', -445, 0, 'stf', 'wj'); N('P6', -395, 0, 'might', 'wk', 1);   leaf('WST', 'wk', 0, -54, 'stfN');
+  N('wj', -490, 0, 'stf', [j1, j2]); N('wk', -445, 0, 'stf', 'wj'); N('P6', -395, 0, 'might', 'wk', 1);   leaf('WST', 'wk', 0, -54, 'stfN'); leaf('BN2', 'wj', -68, 0, 'bench2');
   N('wl', -347, 0, 'tier', 'P6'); N('P7', -299, 0, 'might', 'wl', 1);          // (where a seventh and an eighth weapon used to be: a line is six at the most)
   // east: the five sockets and the second bench, by way of the crafter
   way('e', 'F2', [], [200, 0], ['tier'], 'K1', 'sock2');      // (a Haggling and a Steady hand stood on this way too: one step now, as the way west to the second weapon is)
   at('e1').x += 5;      // room for the first socket's hexagon
-  way('eu', 'K1', [], [370, -225], ['reroll', 'drops', 'craft', 'tier', 'drops', 'craft', 'reroll'], 'K2', 'sock2');
-  way('ed', 'K1', [], [370, 225], ['cheap', 'drops', 'craft', 'tier', 'drops', 'craft', 'cheap'], 'K3', 'sock2');
-  leaf('CAD', 'eu3', -43, -30, 'cAdd');
-  leaf('CTH', 'ed3', -43, 30, 'cThird'); leaf('CMO', 'ed6', -43, 30, 'cMorph');
+  /* Two gates stand on the way, and each is a thing skills can then be: SECOND AFFIX straight after the second socket, with
+     both arms running out of it, and THIRD AFFIX a notable at the very tip, where the arms meet. Holding one
+     lets skills be found with that many affixes and opens the craft that adds one (and, with the first, the one that takes
+     one off). They were leaves off the arms, crafts only; Transmuting was a third, and comes with Skills now. */
+  N('CAD', 266, 0, 'cAdd', 'K1', 1);
+  way('eu', 'CAD', [], [370, -225], ['reroll', 'drops', 'craft', 'tier'], 'K2', 'sock2');      // (four steps out to the socket, as to the weapon in the west; there were seven)
+  way('ed', 'CAD', [], [370, 225], ['cheap', 'drops', 'craft', 'tier'], 'K3', 'sock2');
+  leaf('GD1', 'eu2', -43, -30, 'goldN'); leaf('GD2', 'ed2', -43, 30, 'goldN');      // a notable off each arm, as the hammer's and the axe's are in the west: 30% more gold from monsters
   const j3 = way('ep', 'K2', [[570, -75]], [490, 0], ['gold', 'tier', 'gold', 'craft']), j4 = way('eq', 'K3', [[570, 75]], [490, 0], ['gold', 'tier', 'gold', 'craft']);
-  N('ej', 490, 0, 'drops', [j3, j4]); N('ek', 445, 0, 'tier', 'ej'); N('K4', 395, 0, 'sock2', 'ek', 1);    leaf('BN2', 'ej', 52, 0, 'bench2');
-  N('el', 347, 0, 'tier', 'K4'); N('K5', 299, 0, 'sock2', 'el', 1);          // the sixth socket, the last and deepest
+  N('ej', 490, 0, 'drops', [j3, j4]); N('K4', 442, 0, 'sock2', 'ej', 1);      // (a Deep veins stood between: one fewer, so the last socket is not on top of Second affix)
+     leaf('CTH', 'ej', 52, 0, 'cThird');      // Third affix, at the very tip, where the second bench stood (that is at the west tip now)
+  N('el', 394, 0, 'tier', 'K4'); N('K5', 346, 0, 'sock2', 'el', 1);          // the sixth socket, the last and deepest
   // north: weapon damage up to Life (a hundred of it, which doubles what you begin with), then on to Stun one way and
   // Shockwave the other; Chill's notable hangs over Life
   N('n1', 0, -98, 'dmg', 'URR'); N('n2', 0, -134, 'dmg', 'n1'); N('ULF', 0, -170, 'life', 'n2', 1);                       leaf('ND', 'ULF', 0, -68, 'chillN');
@@ -479,7 +490,7 @@ D.TREE_INNER = (() => { const seen = new Set(D.TREE_START), q = [...D.TREE_START
   return [...seen].filter(id => !D.TREE_LATE.includes(id)); })();
 // dist: how many steps a node is from the middle one (a price goes by it. The ways north and south start at the cursor's
 // node now, a step nearer than they did: D.TREE_FAR counts that step back in, so that nothing out there changed its price)
-D.TREE_FAR = { n1: 1, s1: 1, K1: 2 };
+D.TREE_FAR = { n1: 1, s1: 1, K1: 2, CAD: -1, K2: 3, K3: 3, K4: 1 };      // (the two affix gates were set into ways that were already there: they count as no step, so nothing beyond them changed its price)
 (function () { const todo = D.TREE_START.slice(); for (const id of todo) D.NODE[id].dist = 0; while (todo.length) { const n = D.NODE[todo.shift()]; for (const y of n.near) if (y !== 'start' && D.NODE[y].dist == null) { D.NODE[y].dist = n.dist + 1 + (D.TREE_FAR[y] || 0); todo.push(y); } } })();
 D.isKey = n => /^u[A-Z]/.test(n.eff);        // the unlocks round the middle
 
@@ -567,12 +578,23 @@ D.AFFIXES = [
   AF('leech',   'Life on kill',      1, '+{v} Life on kill', 'all', 6),
 ];
 D.AFFIX = {}; D.AFFIXES.forEach(a => D.AFFIX[a.id] = a);
-/* How many secondary affixes a skill drops with: one or two, never none. From level 5 a skill has a growing chance
-   of a second (4% more each level, so every skill has two from level 29). A boss's skill is twice as likely to
-   have it. Crafting can add more, up to three, if the prestige tree allows it. */
+/* How many secondary affixes a skill drops with: one or two, never none. Up to level 6 a skill has a
+   15% chance of a second, which rises to 24% at level 10 and by 4% each level after that, so every skill has two from
+   level 29. (`from`, `at`: where it starts and with what; `join`: the level from which it is the line `step` a level
+   that reaches nothing at `zero`.) A boss's skill is twice as likely to have it. Crafting can add more, up to three,
+   if the prestige tree allows it. */
 D.AFFIX_MAX = 3;
-D.TWO = { from: 5, step: 0.04, boss: 2 };
-D.twoChance = (lvl, boss) => Math.max(0, Math.min(1, (lvl - D.TWO.from + 1) * D.TWO.step * (boss ? D.TWO.boss : 1)));
+/* (Both need their node on the tree, Second affix and Third affix: without it a skill is never found with that many.)
+   With Second affix a skill can have two from level 1: 15% of them up to level 6, and more from there. With Third affix a
+   two-affix skill can have a third from level 1: 2% there, 2% more each level, 40% at the most (from level 20), a boss's twice as likely. */
+D.THREE = { from: 1, step: 0.02, max: 0.4, boss: 2 };
+D.threeChance = (lvl, boss) => Math.max(0, Math.min(D.THREE.max, (lvl - D.THREE.from + 1) * D.THREE.step * (boss ? D.THREE.boss : 1)));
+D.TWO = { from: 6, at: 0.15, join: 10, zero: 4, step: 0.04, boss: 2 };
+D.twoChance = (lvl, boss) => {
+  const T = D.TWO, line = l => (l - T.zero) * T.step;
+  const c = lvl < T.from ? T.at : lvl >= T.join ? line(lvl) : T.at + (line(T.join) - T.at) * (lvl - T.from) / (T.join - T.from);
+  return Math.max(0, Math.min(1, c * (boss ? T.boss : 1)));
+};
 D.DROP = Math.min(0.6, 0.025 * D.PAY);       // a lone monster's chance to drop a skill; a group's is a little higher (D.ENC). Skills are scarce: about one a level
 D.DROP_BOSS = [0.5, 1];                      // a boss drops one every other time, and an act's boss always drops one
 D.DROP_EVEN = 0.5;     // how hard drops are pulled back towards what the odds owe: this share of the shortfall goes onto the next fight's chance
