@@ -173,7 +173,7 @@ function renderBench() {
       <div class="bsocks">${B.sockets.map((s, i) => sockHTML(G.BENCH, i, newSock(i))).join('')}${lost}</div>
       ${G.treeVal('uReroll') && !S.forge ? `<div class="bbtns${glow('rerolls')}"><span class="dim">Reroll</span>
         <button class="small" data-act="bench-type" data-cost="${part}" data-cur="gold" data-tip-text="New type; sockets stay">Type · ${ci('gold')}${fmt(part)}</button>
-        ${n ? `<button class="small" data-act="bench-socks" data-cost="${part}" data-cur="gold" data-tip-text="New socket colours; type stays">Sockets · ${ci('gold')}${fmt(part)}</button>` : ''}</div>` : ''}
+        ${n ? `<button class="small" data-act="bench-socks" data-cost="${part}" data-cur="gold" data-tip-text="New socket colours, and a new roll for how many (never fewer); type stays">Sockets · ${ci('gold')}${fmt(part)}</button>` : ''}</div>` : ''}
       ${S.forge ? forge : `<div class="bmake"><button class="big${free ? '' : ' off'}" data-act="equip" data-tip-text="${free ? (empty ? plural(empty, 'empty socket') + ' will be lost' : '') : 'No free weapon slot. Scrap one weapon first (the ✕ on its card).'}">Equip</button>${make('remake')}</div>`}
       ${G.hasSpare() && !S.forge ? `<button class="small swap${glow('bench2')}" data-act="bench-swap" data-tip-text="${S.spare ? esc(G.unitName(S.spare)) + ' is set aside' : 'Set this weapon aside'}">⇄ ${S.spare ? `Swap with the ${esc(G.unitName(S.spare))} set aside` : 'Set aside and start another'}</button>` : ''}
     </div>`;
@@ -203,9 +203,11 @@ function detailHTML() {
   if (!gem.aff.length && !(fx && fx.out)) h += `<div class="aff none"><span class="txt dim">No secondary affix</span></div>`;
   // every way to craft it that is unlocked: one the prestige tree has not given yet is not shown at all
   h += `<div class="forge">`;
-  for (const c of D.CRAFTS) {
-    if (c.pick || !G.craftUnlocked(c.id)) continue;       // (Replace one affix sits beside each affix, above)
-    const can = c.can(gem), cost = G.craftCost(c.id, gem), why = typeof c.why === 'function' ? c.why(gem) : c.why || '';
+  // in a column: add, remove, reroll, transmute. Adding is one button: it is the third affix's once a skill has two and the tree allows a third
+  const third = gem.aff.length >= 2 && G.craftUnlocked('third');
+  for (const id of [third ? 'third' : 'add', 'strip', 'recast', 'morph']) {
+    const c = D.CRAFT_BY[id]; if (!G.craftUnlocked(id)) continue;
+    const can = c.can(gem), cost = G.craftCost(c.id, gem), why = id === 'third' && gem.aff.length > 2 ? 'Has three already' : typeof c.why === 'function' ? c.why(gem) : c.why || '';
     h += `<button class="cr${glow('craft-' + c.id)}" data-act="craft" data-kind="${c.id}" ${can ? `data-cost="${cost}" data-cur="gold"` : 'data-off'}>${c.name} · ${ci('gold')}${fmt(cost)}<small>${can ? c.text(gem) : why}</small></button>`;
   }
   h += `
@@ -624,7 +626,7 @@ UI.onEvent = function (ev) {
     case 'kill': { const mine = ev.id === curHit && performance.now() - curAt < 60; if (mine) curHit = null;      // (felled by your own blow: its thump takes the place of the ordinary kill sound, and is not laid over it)
       AU.play(ev.boss ? 'win' : mine ? 'pop' : 'fall', mine ? 0.05 : 0.15); AU.play('chink', 0.25); break; }
     case 'tailwind': AU.play('tailwind', 0.2); break;
-    case 'spawn': if (G.F.enc && G.F.enc.actBoss) AU.play('boss'); break;
+    case 'spawn': if (G.F.enc && G.F.enc.actBoss) AU.play('boss'); else if (G.F.enc && G.F.enc.boss) AU.play('dread', 3); break;
     case 'nova': AU.play('boom', 0.4); break;
     case 'arc': AU.play('zap', 0.3); break;
     case 'status': if (ev.s === 'stun') AU.play('daze', 0.4); break;

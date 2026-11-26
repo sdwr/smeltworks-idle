@@ -116,6 +116,8 @@ const SND = {
   barrier()  { tone({ f: 440, to: 880, dur: 0.22, type: 'sine', vol: 0.1 }); tone({ f: 660, to: 1320, dur: 0.22, type: 'sine', vol: 0.06 }); },
   potion()   { [500, 620, 760].forEach((f, i) => tone({ f, to: f * 1.2, dur: 0.09, type: 'sine', vol: 0.1, at: i * 0.07 })); },
   windup()   { tone({ f: 90, to: 180, dur: 0.5, type: 'sawtooth', vol: 0.09 }); },
+  // a level's boss room opening: a low swell that holds its pitch, with a dull thud under it. Over in under two seconds
+  dread()    { tone({ f: 73, dur: 1.8, vol: 0.26, atk: 0.4, lin: 1, sus: 0.45 }); tone({ f: 104, dur: 1.6, type: 'triangle', vol: 0.11, atk: 0.5, lin: 1, sus: 0.3, at: 0.1 }); tone({ f: 146, dur: 1.5, type: 'triangle', vol: 0.05, atk: 0.4, lin: 1, sus: 0.25 }); tone({ f: 60, to: 38, dur: 0.55, vol: 0.24 }); noise({ f: 90, dur: 1.1, vol: 0.14, ft: 'lowpass' }); },
   boss()     { tone({ f: 55, dur: 1.6, type: 'sawtooth', vol: 0.22 }); tone({ f: 82, dur: 1.6, type: 'sawtooth', vol: 0.14, at: 0.1 }); noise({ f: 120, dur: 1.2, vol: 0.25, ft: 'lowpass' }); },
   death()    { [294, 262, 220, 147].forEach((f, i) => tone({ f, dur: 0.5, type: 'triangle', vol: 0.16, at: i * 0.18 })); },
   win()      { [392, 523, 659, 784].forEach((f, i) => tone({ f, dur: 0.3, type: 'triangle', vol: 0.12, at: i * 0.09 })); },

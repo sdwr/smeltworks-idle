@@ -206,11 +206,11 @@ const craftMult = () => 1 - Math.min(75, G.treeVal('craft')) / 100;
 /* (working on a skill's affixes is dear: 26 to take one off, 39 to roll them again, 52 to add one, 156 for a third, where a reroll of the weapon is 26.
    Prices are fixed, so this is where a deep run's gold goes: a whole line of third affixes is a long saving.) */
 D.CRAFTS = [
-  { id: 'strip',  name: 'Remove affix', price: 'strip', mult: 2.6, node: 'cAdd', can: g => g.aff.length > 0, why: 'No affix', text: () => 'One, at random' },
-  { id: 'recast', name: 'Reroll affixes', price: 'recast', mult: 3,   can: g => g.aff.length > 0, why: 'No affix', text: () => 'New affixes' },
+  { id: 'strip',  name: 'Remove affix', price: 'strip', mult: 2.6, node: 'cAdd', can: g => g.aff.length > 0, why: 'No affix', text: () => 'Remove one affix at random' },
+  { id: 'recast', name: 'Reroll affixes', price: 'recast', mult: 3,   can: g => g.aff.length > 0, why: 'No affix', text: () => 'Reroll all affixes' },
   { id: 'add',    name: 'Add an affix', price: 'recast', mult: 4,   node: 'cAdd', can: g => g.aff.length < 2, why: 'Has two already', text: () => 'One more affix' },
   { id: 'third',  name: 'Add a third affix', price: 'recast', mult: 12,  node: 'cThird', can: g => g.aff.length === 2, why: 'Needs two affixes', text: () => 'A third affix' },
-  { id: 'morph',  name: 'Transmute', price: 'recast', mult: 2,   can: () => true, text: () => 'Becomes another skill' },
+  { id: 'morph',  name: 'Transmute', price: 'recast', mult: 2,   can: () => true, text: () => 'Change skill, keep affixes' },
 ];
 D.CRAFT_BY = {}; D.CRAFTS.forEach(c => D.CRAFT_BY[c.id] = c);
 G.craftUnlocked = id => { const c = D.CRAFT_BY[id]; return !!c && (!c.node || G.treeVal(c.node) > 0); };
@@ -304,9 +304,10 @@ G.benchReroll = function (kind) {
 };
 function reforged(kind) {
   const S = G.S, B = S.bench; S.forge = null;
-  if (kind === 'socks') {                    // every socket's colour, by the type's own odds; how many it has stays as it was made. Skills on the bench go back to the bag
+  if (kind === 'socks') {                    // every socket's colour, by the type's own odds, and how many of them rolled again too: never fewer than it had, so one made short can come up full. Skills on the bench go back to the bag
     const was = B.sockets.map(s => s.c).join('');
     for (const s of B.sockets) if (s.gem) { toBag(s.gem); s.gem = null; }
+    for (let want = rollSockets(); B.sockets.length < want;) B.sockets.push({ c: rollColor(B.type), gem: null });
     for (let n = 0; n < 12; n++) { for (const s of B.sockets) s.c = rollColor(B.type); if (B.sockets.map(s => s.c).join('') !== was) break; }      // never the same set again
     if (S.run.made === 1) fitFirst(B);       // still the run's first weapon: it keeps a socket for something in the bag
   }

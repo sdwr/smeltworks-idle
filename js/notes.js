@@ -46,5 +46,11 @@ SW.notes = [
     'Changed how multiple affixes drop on skills',
     'Added animations for hp bars and level indicator',
   ] },
+  { id: 4, title: 'Version 0.117', lines: [
+    'Rerolling sockets can no longer remove sockets',
+    'Game now pauses while a start-up window is open',
+    'Minor UI changes',
+    'New fonts',
+  ] },
 ];
 })();

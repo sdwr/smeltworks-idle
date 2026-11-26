@@ -34,7 +34,7 @@ const U = SW.util = {
 };
 
 const D = SW.data = {};
-D.VERSION = '0.116.8';
+D.VERSION = '0.117.0';
 D.SAVE_KEY = 'smeltworks-idle-v1';
 /* Play data (js/telemetry.js): where it is posted, and the only addresses of the game it is ever sent from */
 D.TELEMETRY = { url: 'https://smeltworks-idle-logging.sdwr.workers.dev/ingest', hosts: ['sdwr.github.io'] };
@@ -191,7 +191,7 @@ D.PALS = ['rust', 'iron', 'steel', 'rune', 'star', 'void'];   // by socket count
    the skills in it become its stats for good, and its sockets, filled or empty, are gone. */
 D.CRAFT = { sockets0: 0, max: 6, part: 1.6 };      // sockets0: what a weapon is made with before any socket node; part: what the type alone, or the sockets alone, costs to reroll, as a multiple of a new weapon: more, since it keeps the half you liked
 /* A made weapon does not always get every socket the tree has unlocked: the chance of all of them, of one short,
-   and of two short (never fewer than one). Rerolling its sockets changes their colours, not how many: for more, make it again. */
+   and of two short (never fewer than one). Rerolling its sockets rolls their colours and how many again, by the same chances, and never leaves it with fewer than it had. */
 D.SOCK_ROLL = [0.60, 0.30, 0.10];
 /* and the more sockets there are to get, the less often all of them: the chance of the full count falls by `per` for each socket
    unlocked past `from`, as far as `to` (60% at two, 55% at three, 50% from four on). What it loses goes to one short. */

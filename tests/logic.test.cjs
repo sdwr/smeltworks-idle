@@ -464,9 +464,9 @@ test('posts and sockets are the tree\'s; a made weapon rolls all its sockets, or
   { const n3 = tally(3), n4 = tally(4); near(n3[3] / 4000, 0.55, 0.1); near(n4[4] / 4000, 0.50, 0.1); } near(n[4] / 4000, 0.10, 0.25);
   n = tally(2); assert.equal(Object.keys(n).sort().join(), '1,2', 'never fewer than one'); near(n[2] / 4000, 0.60, 0.1);
   n = tally(1); assert.equal(Object.keys(n).join(), '1');
-  // rerolling the sockets changes their colours and never how many: a weapon that rolled short stays short
+  // rerolling the sockets rolls how many again too, and never to fewer: a weapon that rolled short comes up full before long
   S.crafter = 6; S.tree.URR = 1; S.gold = 1e9; for (const want of [4, 5, 6]) { do { S.bench = G.rollBench(); } while (S.bench.sockets.length !== want);
-    const cols = new Set(); for (let i = 0; i < 40; i++) { assert.ok(G.benchReroll('socks')); assert.equal(S.bench.sockets.length, want, 'still ' + want); cols.add(S.bench.sockets.map(s => s.c).join('')); } assert.ok(cols.size > 5, 'new colours each time'); }
+    const cols = new Set(); let had = want, first = 0; for (let i = 0; i < 40; i++) { assert.ok(G.benchReroll('socks')); assert.ok(S.bench.sockets.length >= had && S.bench.sockets.length <= 6, 'never fewer: ' + had + ' then ' + S.bench.sockets.length); if (!first && S.bench.sockets.length > want) first = i + 1; had = S.bench.sockets.length; cols.add(S.bench.sockets.map(s => s.c).join('')); } assert.ok(cols.size > 5, 'new colours each time'); assert.equal(had, 6, 'full by the end, from ' + want); if (want < 6) assert.ok(first >= 1 && first <= 12, 'and soon: reroll ' + first); }
   // not before the first two nodes
   const N0 = load(3), G0 = N0.game; assert.equal(G0.S.posts.length, 0); assert.equal(G0.craftSockets(), 0); assert.equal(G0.rollBench().sockets.length, 0);
 });
